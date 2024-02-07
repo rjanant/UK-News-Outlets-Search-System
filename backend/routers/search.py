@@ -4,6 +4,7 @@ from os.path import basename
 from typing import Optional, Annotated
 from pydantic import BaseModel, Field
 from utils.basetype import Result
+from os import getenv
 
 router = APIRouter(
     prefix=f"/{basename(__file__).replace('.py', '')}",
@@ -38,4 +39,5 @@ class TestBody(BaseModel):
     field: str = Field(..., description="Test field", min_length=1, max_length=1024)
 @router.post("/test")
 async def test(body: TestBody):
-    return ORJSONResponse(content=body.model_dump())
+    test_env = getenv("TESTING", "default")
+    return ORJSONResponse(content={"field": body.field, "env": test_env})
