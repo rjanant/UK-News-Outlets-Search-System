@@ -34,20 +34,25 @@ jobs:
         gcloud auth configure-docker europe-west2-docker.pkg.dev
         docker build -t europe-west2-docker.pkg.dev/grounded-hull-413601/ttds/fastapi:latest .
         docker push europe-west2-docker.pkg.dev/grounded-hull-413601/ttds/fastapi:latest
-    
-    - name: delete all deployed services
-      run: |
-        for service in $(gcloud run services list --platform managed --region europe-west1 --format="value(SERVICE)"); do
-          gcloud run services delete $service --platform managed --region europe-west1 --quiet
-        done
 
     - name: deploy to cloud run
       env:
         GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT }}
       run: |
-        gcloud run deploy fastapi \
-          --image=europe-west2-docker.pkg.dev/grounded-hull-413601/ttds/fastapi:latest \
-          --platform=managed \
-          --region=europe-west1 \
-          --update-env-vars TESTING=789 \
-          --allow-unauthenticated
+        SERVICE_NAME="fastapi"
+        IMAGE_NAME="europe-west2-docker.pkg.dev/grounded-hull-413601/ttds/fastapi:latest"
+        EXISTING_SERVICE=$(gcloud run services list --platform managed --region europe-west1 --format="value(SERVICE)" | grep $SERVICE_NAME || true)
+        if [ -z "$EXISTING_SERVICE" ]; then
+          echo "Service does not exist, deploying..."
+          gcloud run deploy $SERVICE_NAME \
+            --image=$IMAGE_NAME \
+            --platform=managed \
+            --region=europe-west1 \
+            --allow-unauthenticated
+        else
+          echo "Service exists, updating..."
+          gcloud run services update $SERVICE_NAME \
+            --image=$IMAGE_NAME \
+            --platform=managed \
+            --region=europe-west1 \
+        fi
