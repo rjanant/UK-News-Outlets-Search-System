@@ -54,5 +54,5 @@ jobs:
           gcloud run services update $SERVICE_NAME \
             --image=$IMAGE_NAME \
             --platform=managed \
-            --region=europe-west1 \
+            --region=europe-west1
         fi
