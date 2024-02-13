@@ -1,8 +1,17 @@
+# Stage 1: Build the frontend
+FROM node:20 as build-stage
+WORKDIR /app
+COPY ./frontend/package*.json ./
+RUN npm install
+COPY ./frontend ./
+RUN npm run build
+
+# Stage 2: Run the backend
 FROM python:3.11-slim
 ENV PORT=8080
-ENV TESTING=123
 WORKDIR /app
-COPY ./backend /app
+COPY --from=build-stage /app/build ./react
+COPY ./backend ./
 RUN pip install -r requirements.txt
 EXPOSE ${PORT}
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT}
+CMD uvicorn deploy:app --host 0.0.0.0 --port ${PORT}

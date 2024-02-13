@@ -161,3 +161,6 @@ cython_debug/
 
 # ignore the file of json in the root directory
 *.json
+
+build/
+react/

@@ -1,20 +1,33 @@
 from fastapi import FastAPI
 import uvicorn
 from routers.api import router as api_router
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
-import sys
+
+load_dotenv()
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 
 app = FastAPI(dependencies=[])
+
+# change the port if you want (react app)
+origins = [
+    "http://localhost:3000",
+    "localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(api_router)
 
 if __name__ == "__main__":
-    load_dotenv()
-    
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    if not os.path.exists(f"files"):
-        os.makedirs(f"files")
-    
     uvicorn.run("main:app", 
                 host="127.0.0.1",
                 port=8001,
