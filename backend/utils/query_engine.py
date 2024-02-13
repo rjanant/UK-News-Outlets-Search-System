@@ -9,6 +9,7 @@ import time
 import threading
 from collections import defaultdict
 import math
+from typing import DefaultDict, Dict
 
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 XML_FILES = ["sample.xml", "trec.sample.xml", "trec.5000.xml"]
@@ -86,7 +87,7 @@ def save_json_file(file_name: str, data: dict, output_dir: str = "result"):
     with open(os.path.join(CURRENT_DIR, output_dir, file_name), "wb") as f:
         f.write(json.dumps(data).encode("utf8"))
 
-def index_docs(docs_batches: minidom.Document, stopping: bool = True, stemming: bool = True, escape_char:bool = False, headline:bool = False) -> defaultdict(dict):
+def index_docs(docs_batches: minidom.Document, stopping: bool = True, stemming: bool = True, escape_char:bool = False, headline:bool = False) -> DefaultDict[str, Dict[str, list]]:
     local_index = defaultdict(dict)
     try:
         for doc in docs_batches:
@@ -110,7 +111,7 @@ def index_docs(docs_batches: minidom.Document, stopping: bool = True, stemming: 
     
     return local_index
 
-def process_batch(docs_batch: list, pos_inverted_index: defaultdict(dict), stopping: bool = True, stemming:bool = True, escape_char: bool = False, headline: bool = False):
+def process_batch(docs_batch: list, pos_inverted_index: DefaultDict[str, Dict[str, list]], stopping: bool = True, stemming:bool = True, escape_char: bool = False, headline: bool = False):
     local_index = index_docs(docs_batch, stopping, stemming, escape_char, headline)
     try:
         lock.acquire()
@@ -161,7 +162,7 @@ def positional_inverted_index(file_name: str, stopping: bool = True, stemming: b
     return pos_inverted_index
 
 # save as binary file
-def save_index_file(file_name: str, index: defaultdict(dict), output_dir: str = "binary_file"):
+def save_index_file(file_name: str, index: DefaultDict[str, dict[str, list]], output_dir: str = "binary_file"):
     if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
         os.mkdir(os.path.join(CURRENT_DIR, output_dir))
     # sort index by term and doc_id in int
