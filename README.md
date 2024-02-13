@@ -1,16 +1,25 @@
 # ttds-proj
 Python version: 3.12.1
 
-docker build:
+# Create virtual environment(pyenv):
+python3.12 -m venv venv
+
+# Create virtual environment(conda):
+conda create -n ttds-proj python=3.12.1
+
+# Install requirements:
+pip install -r requirements.txt
+
+# docker build:
 docker build -t fastapi:latest .
 
-docker run:
+# docker run:
 docker run -d -p 8000:8000 fastapi
 
-deployment:
+# deployment:
 create commit to branch "deploy"
 
-folder structure:
+# folder structure:
 .github/workflows
 - build.yml (CI/CD)
 - backend
