@@ -120,7 +120,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -160,7 +159,4 @@ cython_debug/
 #.idea/
 
 # ignore the file of json in the root directory
-*.json
-
-build/
-react/
+grounded-hull-413601-e8664bbceeb5.json
