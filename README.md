@@ -2,10 +2,19 @@
 Python version: 3.12.1
 
 # Create virtual environment(pyenv):
-python3.12 -m venv venv
+cd backend
+python -m venv .venv
+
+# Activate virtual environment(pyenv):
+windows: .venv\Scripts\activate
+linux: source .venv/bin/activate
 
 # Create virtual environment(conda):
+cd backend
 conda create -n ttds-proj python=3.12.1
+
+# Activate virtual environment(conda):
+conda activate ttds-proj
 
 # Install requirements:
 pip install -r requirements.txt
