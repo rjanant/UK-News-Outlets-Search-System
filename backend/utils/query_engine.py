@@ -1,18 +1,14 @@
 import re
 from nltk.stem import PorterStemmer
-from xml.dom import minidom
-from bs4 import BeautifulSoup
-import json
 import traceback
 import os
 import time
-import threading
 from collections import defaultdict
 import math
 from typing import DefaultDict, Dict
+from .common import read_file, get_stop_words, save_json_file, get_preprocessed_words
 
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
-XML_FILES = ["sample.xml", "trec.sample.xml", "trec.5000.xml"]
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 NUM_OF_CORES = os.cpu_count()
 SPECIAL_PATTERN = {
@@ -20,50 +16,6 @@ SPECIAL_PATTERN = {
     'exact': re.compile(r"\"[^\"]+\""),
     'spliter': re.compile(r"(AND|OR|NOT|#\d+\(\w+,\s*\w+\)|\"[^\"]+\"|\'[^\']+\'|\w+|\(|\))")
 }
-
-lock = threading.Lock()
-
-def read_file(file_name: str) -> str:
-    with open(os.path.join(CURRENT_DIR, file_name), "r", encoding="utf8") as f:
-        content = f.read()
-    return content
-
-def read_xml_file(file_name: str) -> minidom.Document:
-    file = minidom.parse(file_name)
-    return file
-
-def get_stop_words(file_name: str = STOP_WORDS_FILE) -> list:
-    assert os.path.exists(os.path.join(CURRENT_DIR, file_name)), f"File {file_name} does not exist"
-    with open(os.path.join(CURRENT_DIR, file_name), "r") as f:
-        stop_words = f.read()
-    return stop_words.split("\n")
-
-def remove_stop_words(tokens: list) -> list:
-    assert os.path.exists(os.path.join(CURRENT_DIR, STOP_WORDS_FILE)), f"File {STOP_WORDS_FILE} does not exist"
-    stop_words = get_stop_words(STOP_WORDS_FILE)
-    return [token for token in tokens if token not in stop_words]
-
-def tokenize(content: str) -> list:
-    return re.findall(r"\w+", content)
-
-def get_stemmed_words(tokens: list) -> list:
-    # stemming
-    stemmer = PorterStemmer()
-    words = [stemmer.stem(token) for token in tokens]
-    return words
-
-def replace_non_word_characters(content: str) -> str:
-    # replace non word characters with space
-    return re.sub(r"[^\w\s]", " ", content)
-
-def get_preprocessed_words(content: str, stopping: bool = True, stemming: bool = True) -> list:
-    tokens = tokenize(content)
-    tokens = [token.lower() for token in tokens]
-    if stopping:
-        tokens = remove_stop_words(tokens)
-    if stemming:
-        tokens = get_stemmed_words(tokens)
-    return tokens
 
 def preprocess_match(match: re.Match, stopping: bool = True, stemming: bool = True) -> str:
     word = match.group(0)
@@ -80,111 +32,6 @@ def preprocess_match(match: re.Match, stopping: bool = True, stemming: bool = Tr
         word = stemmer.stem(word)
 
     return word
-
-def save_json_file(file_name: str, data: dict, output_dir: str = "result"):
-    if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
-        os.mkdir(os.path.join(CURRENT_DIR, output_dir))
-    with open(os.path.join(CURRENT_DIR, output_dir, file_name), "wb") as f:
-        f.write(json.dumps(data).encode("utf8"))
-
-def index_docs(docs_batches: minidom.Document, stopping: bool = True, stemming: bool = True, escape_char:bool = False, headline:bool = False) -> DefaultDict[str, Dict[str, list]]:
-    local_index = defaultdict(dict)
-    try:
-        for doc in docs_batches:
-            doc_id = doc.find("docno").text if not escape_char else doc.find("docno").decode_contents()
-            doc_text = doc.find("text").text if not escape_char else doc.find("text").decode_contents()
-
-            text_words = get_preprocessed_words(doc_text, stopping, stemming)
-            if headline:
-                headline = doc.find("headline").text if not escape_char else doc.find("headline").decode_contents()
-                headline_words = get_preprocessed_words(headline, stopping, stemming)
-                text_words = headline_words + text_words
-
-            for position, word in enumerate(text_words):
-                if doc_id not in local_index[word]:
-                    local_index[word][doc_id] = []
-                local_index[word][doc_id].append(position + 1)
-    except:
-        print("Error processing doc_id", doc_id)
-        traceback.print_exc()
-        exit()
-    
-    return local_index
-
-def process_batch(docs_batch: list, pos_inverted_index: DefaultDict[str, Dict[str, list]], stopping: bool = True, stemming:bool = True, escape_char: bool = False, headline: bool = False):
-    local_index = index_docs(docs_batch, stopping, stemming, escape_char, headline)
-    try:
-        lock.acquire()
-        for word in local_index:
-            for doc_id in local_index[word]:
-                if word not in pos_inverted_index or doc_id not in pos_inverted_index[word]:
-                    pos_inverted_index[word][doc_id] = []
-                pos_inverted_index[word][doc_id] += local_index[word][doc_id]
-    except:
-        print("Error processing batch")
-        traceback.print_exc()
-        exit()
-    finally:
-        lock.release()
-    
-    
-def positional_inverted_index(file_name: str, stopping: bool = True, stemming: bool = True, escape_char: bool = False, headline: bool = True) -> dict:
-    assert os.path.exists(os.path.join(CURRENT_DIR, file_name)), f"File {file_name} does not exist"
-    xml_text = read_file(file_name)
-    doc_ids_set = set()
-    soup = BeautifulSoup(xml_text, "html.parser")
-    docs = soup.find_all("doc")
-    doc_nos = soup.find_all("docno")
-    for doc_no in doc_nos:
-        doc_ids_set.add(doc_no.text)
-    document_size = len(docs)
-    batch_size = document_size // NUM_OF_CORES
-    remainder = document_size % NUM_OF_CORES
-    pos_inverted_index = defaultdict(dict)
-    pos_inverted_index['document_size']['0'] = document_size
-    pos_inverted_index['doc_ids_list'] = list(doc_ids_set)
-    
-    batches = [ docs[i * batch_size: (i + 1) * batch_size] for i in range(NUM_OF_CORES)]
-    if remainder != 0:
-        # append the remainder to the last batch
-        batches[-1] += docs[-remainder:]
-    
-    threads = []
-    for batch in batches:
-        thread = threading.Thread(target=process_batch, args=(batch, pos_inverted_index, stopping, stemming, escape_char, headline))
-        threads.append(thread)
-        thread.start()
-    
-    for thread in threads:
-        thread.join()
-    
-
-    return pos_inverted_index
-
-# save as binary file
-def save_index_file(file_name: str, index: DefaultDict[str, dict[str, list]], output_dir: str = "binary_file"):
-    if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
-        os.mkdir(os.path.join(CURRENT_DIR, output_dir))
-    # sort index by term and doc_id in int
-    index_output = dict(sorted(index.items()))
-    for term, record in index_output.items():
-        if term == "document_size" or term == "doc_ids_list":
-            continue
-        index_output[term] = dict(sorted(record.items(), key=lambda x: int(x[0])))
-    
-    with open(os.path.join(CURRENT_DIR, output_dir, file_name), "wb") as f:
-        for term, record in index_output.items():
-            if term == "document_size" or term == "doc_ids_list":
-                continue
-            f.write(f"{term} {len(record)}\n".encode("utf8"))
-            for doc_id, positions in record.items():
-                f.write(f"\t{doc_id}: {','.join([str(pos) for pos in positions])}\n".encode("utf8"))
-                
-
-def load_binary_index(file_name: str, output_dir: str = "binary_file") -> dict:
-    with open(os.path.join(CURRENT_DIR, output_dir, file_name), "rb") as f:
-        data = f.read().decode("utf8")
-    return json.loads(data)
 
 def load_queries(file_name: str) -> list:
     query_lines = read_file(file_name).split("\n")
@@ -455,39 +302,40 @@ def save_ranked_queries_result(results: list, output_dir: str = "result"):
                 f.write(f"{query_id},{doc_id},{score:.4f}\n")
 
 if __name__ == "__main__":
+    pass
     # output_dir = ""
-    custom_index_dir = 'index'
-    start = time.time()
-    index = positional_inverted_index(XML_FILES[2], stopping=True, stemming=True, escape_char=False, headline=True)
-    print("Time taken to build index", time.time() - start)
-    # save the index file which specifies the required format for submission
-    save_index_file("index.txt", index, '')
-    # save the custom index file
-    save_json_file("index.json", index, custom_index_dir)
+    # custom_index_dir = 'index'
+    # start = time.time()
+    # index = positional_inverted_index(XML_FILES[2], stopping=True, stemming=True, escape_char=False, headline=True)
+    # print("Time taken to build index", time.time() - start)
+    # # save the index file which specifies the required format for submission
+    # save_index_file("index.txt", index, '')
+    # # save the custom index file
+    # save_json_file("index.json", index, custom_index_dir)
 
-    ### loading index
-    start = time.time()
-    index = load_binary_index("index.json", custom_index_dir)
-    print("Time taken to load index", time.time() - start)
+    # ### loading index
+    # start = time.time()
+    # index = load_binary_index("index.json", custom_index_dir)
+    # print("Time taken to load index", time.time() - start)
 
-    # ### processing boolean queries
-    boolean_queries = read_boolean_queries("queries.boolean.txt")
-    boolean_results = []
-    doc_ids_list = index['doc_ids_list']
-    start = time.time()
-    for query in boolean_queries:
-        query_id, query_text = query
-        retrieved_docs = evaluate_boolean_query(query_text, index, doc_ids_list)
-        retrieved_docs = [int(x) for x in retrieved_docs] if retrieved_docs else []
-        retrieved_docs.sort()
-        boolean_results.append((query_id, retrieved_docs))
+    # # ### processing boolean queries
+    # boolean_queries = read_boolean_queries("queries.boolean.txt")
+    # boolean_results = []
+    # doc_ids_list = index['doc_ids_list']
+    # start = time.time()
+    # for query in boolean_queries:
+    #     query_id, query_text = query
+    #     retrieved_docs = evaluate_boolean_query(query_text, index, doc_ids_list)
+    #     retrieved_docs = [int(x) for x in retrieved_docs] if retrieved_docs else []
+    #     retrieved_docs.sort()
+    #     boolean_results.append((query_id, retrieved_docs))
 
-    save_boolean_queries_result(boolean_results, '')
-    print("Time taken to process boolean queries", time.time() - start)
+    # save_boolean_queries_result(boolean_results, '')
+    # print("Time taken to process boolean queries", time.time() - start)
 
-    # ### processing ranked queries
-    ranked_queries = read_ranked_queries("queries.ranked.txt")
-    start = time.time()
-    ranked_results = evaluate_ranked_query(ranked_queries, index)
-    save_ranked_queries_result(ranked_results, '')
-    print("Time taken to process ranked queries", time.time() - start)
+    # # ### processing ranked queries
+    # ranked_queries = read_ranked_queries("queries.ranked.txt")
+    # start = time.time()
+    # ranked_results = evaluate_ranked_query(ranked_queries, index)
+    # save_ranked_queries_result(ranked_results, '')
+    # print("Time taken to process ranked queries", time.time() - start)

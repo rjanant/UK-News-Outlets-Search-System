@@ -8,97 +8,14 @@ import os
 import time
 import threading
 from collections import defaultdict
-import math
+from typing import DefaultDict, Dict
+from .common import read_file, read_xml_file, get_stop_words, remove_stop_words, tokenize, get_stemmed_words, replace_non_word_characters, get_preprocessed_words, save_json_file
 
 CURRENT_DIR = os.getcwd()
 NUM_OF_CORES = os.cpu_count()
-STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 XML_FILES = ["sample.xml", "trec.sample.xml", "trec.5000.xml"]
 
 lock = threading.Lock()
-
-
-def read_file(file_name: str) -> str:
-    with open(os.path.join(CURRENT_DIR, file_name), "r", encoding="utf8") as f:
-        content = f.read()
-    return content
-
-
-def read_xml_file(file_name: str) -> minidom.Document:
-    file = minidom.parse(file_name)
-    return file
-
-
-def get_stop_words(file_name: str = STOP_WORDS_FILE) -> list:
-    assert os.path.exists(
-        os.path.join(CURRENT_DIR, file_name)
-    ), f"File {file_name} does not exist"
-    with open(os.path.join(CURRENT_DIR, file_name), "r") as f:
-        stop_words = f.read()
-    return stop_words.split("\n")
-
-
-def remove_stop_words(tokens: list) -> list:
-    assert os.path.exists(
-        os.path.join(CURRENT_DIR, STOP_WORDS_FILE)
-    ), f"File {STOP_WORDS_FILE} does not exist"
-    stop_words = get_stop_words(STOP_WORDS_FILE)
-    return [token for token in tokens if token not in stop_words]
-
-
-def tokenize(content: str) -> list:
-    return re.findall(r"\w+", content)
-
-
-def get_stemmed_words(tokens: list) -> list:
-    # stemming
-    stemmer = PorterStemmer()
-    words = [stemmer.stem(token) for token in tokens]
-    return words
-
-
-def replace_non_word_characters(content: str) -> str:
-    # replace non word characters with space
-    return re.sub(r"[^\w\s]", " ", content)
-
-
-def get_preprocessed_words(
-    content: str, stopping: bool = True, stemming: bool = True
-) -> list:
-    tokens = tokenize(content)
-    tokens = [token.lower() for token in tokens]
-    if stopping:
-        tokens = remove_stop_words(tokens)
-    if stemming:
-        tokens = get_stemmed_words(tokens)
-    return tokens
-
-
-def preprocess_match(
-    match: re.Match, stopping: bool = True, stemming: bool = True
-) -> str:
-    word = match.group(0)
-    if word in ["AND", "OR", "NOT"]:
-        return word
-    word = word.lower()
-
-    stopwords = get_stop_words()
-    if stopping and word in stopwords:
-        return ""
-
-    if stemming:
-        stemmer = PorterStemmer()
-        word = stemmer.stem(word)
-
-    return word
-
-
-def save_json_file(file_name: str, data: dict, output_dir: str = "result"):
-    if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
-        os.mkdir(os.path.join(CURRENT_DIR, output_dir))
-    with open(os.path.join(CURRENT_DIR, output_dir, file_name), "wb") as f:
-        f.write(json.dumps(data).encode("utf8"))
-
 
 def index_docs(
     docs_batches: minidom.Document,
@@ -106,7 +23,7 @@ def index_docs(
     stemming: bool = True,
     escape_char: bool = False,
     headline: bool = False,
-) -> defaultdict(dict):
+) -> DefaultDict[str, Dict[str, list]]:
     local_index = defaultdict(dict)
     try:
         for doc in docs_batches:
@@ -145,7 +62,7 @@ def index_docs(
 
 def process_batch(
     docs_batch: list,
-    pos_inverted_index: defaultdict(dict),
+    pos_inverted_index: DefaultDict[str, Dict[str, list]],
     stopping: bool = True,
     stemming: bool = True,
     escape_char: bool = False,
@@ -216,7 +133,7 @@ def positional_inverted_index(
 
 # save as binary file
 def save_index_file(
-    file_name: str, index: defaultdict(dict), output_dir: str = "binary_file"
+    file_name: str, index: DefaultDict[str, Dict[str, list]], output_dir: str = "binary_file"
 ):
     if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
         os.mkdir(os.path.join(CURRENT_DIR, output_dir))
@@ -294,7 +211,7 @@ def delta_encode(positions):
     delta_encoded = [positions[0]] + [positions[i] - positions[i-1] for i in range(1, len(positions))]
     return delta_encoded
 
-def save_delta_index_file(file_name: str, index: defaultdict(dict), output_dir: str = "binary_file"):
+def save_delta_index_file(file_name: str, index: DefaultDict[str, Dict[str, list]], output_dir: str = "binary_file"):
     if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
         os.mkdir(os.path.join(CURRENT_DIR, output_dir))
     index_output = dict(sorted(index.items()))
