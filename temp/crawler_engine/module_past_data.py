@@ -212,7 +212,7 @@ async def scrape_old_async(
     # Update N Pages info after filtering
     n_pages = len(page_links)
 
-    for page in page_links:
+    for page_idx, page in enumerate(page_links):
         if "telegraph" in source:
             r = req_get(page)
             data_url_target = soup(r.content)
@@ -228,7 +228,7 @@ async def scrape_old_async(
 
         data_link_chunks = np.array_split(data_link, len(data_link) // n_workers)
 
-        for pkg in tqdm(data_link_chunks, desc=f"Page-{page}/{n_pages}"):
+        for pkg in tqdm(data_link_chunks, desc=f"Page: {page_idx}/{n_pages}"):
             output_data = await run_scrape(pkg)
             all_data.extend(output_data)
 
