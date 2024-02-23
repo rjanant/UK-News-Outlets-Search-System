@@ -10,3 +10,5 @@ pyjwt
 orjson
 bs4
 nltk
+pandas
+pyarrow

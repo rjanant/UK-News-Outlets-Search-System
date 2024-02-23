@@ -6,7 +6,8 @@ import time
 from collections import defaultdict
 import math
 from typing import DefaultDict, Dict
-from .common import read_file, get_stop_words, save_json_file, get_preprocessed_words
+from basetype import InvertedIndex
+from common import read_file, get_stop_words, save_json_file, get_preprocessed_words
 
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -58,7 +59,7 @@ def handle_not_operator(operand: list, doc_ids_list: list) -> list:
     print("NOT operation")
     return list(set(doc_ids_list) - set(operand))
 
-def get_doc_ids_from_string(string: str, inverted_index: dict, doc_ids_list: list, negate: bool = False) -> list:
+def get_doc_ids_from_string(string: str, inverted_index: Dict, doc_ids_list: list, negate: bool = False) -> list:
     # check if string is a phrase bounded by double quotes 
     if string in inverted_index:
         if negate:
@@ -66,7 +67,7 @@ def get_doc_ids_from_string(string: str, inverted_index: dict, doc_ids_list: lis
         else:
             return list(inverted_index[string].keys()) if inverted_index[string] else []
 
-def get_doc_ids_from_pattern(pattern: str, inverted_index: dict, doc_ids_list: list, negate: bool = False):
+def get_doc_ids_from_pattern(pattern: str, inverted_index: Dict, doc_ids_list: list, negate: bool = False):
     # pattern is of the form "A B"/"A B C" etc
     # retrieve words from the pattern
     doc_ids = []
@@ -154,7 +155,7 @@ def calculate_tf_idf(inverted_index: dict, tokens: list, doc_id: str, docs_size:
     return tf_idf_score
 
 
-### Shunting Yard Algorithm
+# convert infix to postfix
 def precedence(operator: str) -> int:
     if operator == "NOT":
         return 3
@@ -264,7 +265,7 @@ def evaluate_boolean_query(query: str, inverted_index: dict, doc_ids_list: list,
         traceback.print_exc()
         exit()
         
-def evaluate_ranked_query(queries: list, index: defaultdict, max_result: int = 150, stopping: bool = True, stemming:bool = True) -> list:
+def evaluate_ranked_query(queries: list, index: DefaultDict, max_result: int = 150, stopping: bool = True, stemming:bool = True) -> list:
     results = []
     docs_size = int(index['document_size']['0'])
     for query_id, query in queries:
@@ -302,37 +303,19 @@ def save_ranked_queries_result(results: list, output_dir: str = "result"):
                 f.write(f"{query_id},{doc_id},{score:.4f}\n")
 
 if __name__ == "__main__":
-    pass
-    # output_dir = ""
-    # custom_index_dir = 'index'
-    # start = time.time()
-    # index = positional_inverted_index(XML_FILES[2], stopping=True, stemming=True, escape_char=False, headline=True)
-    # print("Time taken to build index", time.time() - start)
-    # # save the index file which specifies the required format for submission
-    # save_index_file("index.txt", index, '')
-    # # save the custom index file
-    # save_json_file("index.json", index, custom_index_dir)
-
-    # ### loading index
-    # start = time.time()
-    # index = load_binary_index("index.json", custom_index_dir)
-    # print("Time taken to load index", time.time() - start)
-
-    # # ### processing boolean queries
-    # boolean_queries = read_boolean_queries("queries.boolean.txt")
-    # boolean_results = []
-    # doc_ids_list = index['doc_ids_list']
-    # start = time.time()
-    # for query in boolean_queries:
-    #     query_id, query_text = query
-    #     retrieved_docs = evaluate_boolean_query(query_text, index, doc_ids_list)
-    #     retrieved_docs = [int(x) for x in retrieved_docs] if retrieved_docs else []
-    #     retrieved_docs.sort()
-    #     boolean_results.append((query_id, retrieved_docs))
-
-    # save_boolean_queries_result(boolean_results, '')
-    # print("Time taken to process boolean queries", time.time() - start)
-
+    ### loading index
+    start_time = time.time()
+    inverted_index_str = read_file("inverted_index.json")
+    inverted_index = InvertedIndex.model_validate_json(inverted_index_str)
+    print("Time taken to load index", time.time() - start_time)
+    
+    queries = ["\"Comic Relief\""]
+    doc_ids_list = inverted_index.meta.doc_ids_list
+    start_time = time.time()
+    for query in queries:
+        print(evaluate_boolean_query(query, inverted_index.index, doc_ids_list))
+    print("Time taken to process boolean queries", time.time() - start_time)
+    
     # # ### processing ranked queries
     # ranked_queries = read_ranked_queries("queries.ranked.txt")
     # start = time.time()

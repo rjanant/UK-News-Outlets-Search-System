@@ -159,4 +159,7 @@ cython_debug/
 #.idea/
 
 # ignore the file of json in the root directory
-grounded-hull-413601-e8664bbceeb5.json
+grounded*.json
+clientLibraryConfig-github.json
+data/
+backend/utils/result/

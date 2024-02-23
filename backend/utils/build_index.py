@@ -8,77 +8,43 @@ import os
 import time
 import threading
 from collections import defaultdict
-from typing import DefaultDict, Dict
-from .common import read_file, read_xml_file, get_stop_words, remove_stop_words, tokenize, get_stemmed_words, replace_non_word_characters, get_preprocessed_words, save_json_file
+from typing import DefaultDict, Dict, List
+from common import read_file, get_preprocessed_words, load_csv_from_news_source, save_json_file, load_json_file
+from basetype import InvertedIndex, InvertedIndexMetadata, NewsArticleData, NewsArticlesFragment, NewsArticlesBatch
+from constant import Source
+from datetime import date
 
 CURRENT_DIR = os.getcwd()
-NUM_OF_CORES = os.cpu_count()
-XML_FILES = ["sample.xml", "trec.sample.xml", "trec.5000.xml"]
+NUM_OF_CORES = os.cpu_count() or 1
 
 lock = threading.Lock()
 
-def index_docs(
-    docs_batches: minidom.Document,
+def process_batch(
+    fragment_list: List[NewsArticlesFragment],
+    inverted_index: InvertedIndex,
     stopping: bool = True,
     stemming: bool = True,
-    escape_char: bool = False,
-    headline: bool = False,
-) -> DefaultDict[str, Dict[str, list]]:
+) -> None:
     local_index = defaultdict(dict)
-    try:
-        for doc in docs_batches:
-            doc_id = (
-                doc.find("docno").text
-                if not escape_char
-                else doc.find("docno").decode_contents()
-            )
-            doc_text = (
-                doc.find("text").text
-                if not escape_char
-                else doc.find("text").decode_contents()
-            )
-
+    for fragment in fragment_list:
+        for article in fragment.articles:
+            doc_id = article.doc_id
+            doc_text = article.title + "\n" + article.content
             text_words = get_preprocessed_words(doc_text, stopping, stemming)
-            if headline:
-                headline = (
-                    doc.find("headline").text
-                    if not escape_char
-                    else doc.find("headline").decode_contents()
-                )
-                headline_words = get_preprocessed_words(headline, stopping, stemming)
-                text_words = headline_words + text_words
-
             for position, word in enumerate(text_words):
                 if doc_id not in local_index[word]:
                     local_index[word][doc_id] = []
                 local_index[word][doc_id].append(position + 1)
-    except:
-        print("Error processing doc_id", doc_id)
-        traceback.print_exc()
-        exit()
-
-    return local_index
-
-
-def process_batch(
-    docs_batch: list,
-    pos_inverted_index: DefaultDict[str, Dict[str, list]],
-    stopping: bool = True,
-    stemming: bool = True,
-    escape_char: bool = False,
-    headline: bool = False,
-):
-    local_index = index_docs(docs_batch, stopping, stemming, escape_char, headline)
     try:
         lock.acquire()
         for word in local_index:
             for doc_id in local_index[word]:
                 if (
-                    word not in pos_inverted_index
-                    or doc_id not in pos_inverted_index[word]
+                    word not in inverted_index.index
+                    or doc_id not in inverted_index.index[word]
                 ):
-                    pos_inverted_index[word][doc_id] = []
-                pos_inverted_index[word][doc_id] += local_index[word][doc_id]
+                    inverted_index.index[word][doc_id] = []
+                inverted_index.index[word][doc_id] += local_index[word][doc_id]
     except:
         print("Error processing batch")
         traceback.print_exc()
@@ -86,49 +52,50 @@ def process_batch(
     finally:
         lock.release()
 
-
 def positional_inverted_index(
-    file_name: str,
+    news_batch: NewsArticlesBatch,
     stopping: bool = True,
     stemming: bool = True,
     escape_char: bool = False,
-    headline: bool = True,
-) -> dict:
-    assert os.path.exists(
-        os.path.join(CURRENT_DIR, file_name)
-    ), f"File {file_name} does not exist"
-    xml_text = read_file(file_name)
-    doc_ids_set = set()
-    soup = BeautifulSoup(xml_text, "html.parser")
-    docs = soup.find_all("doc")
-    doc_nos = soup.find_all("docno")
-    for doc_no in doc_nos:
-        doc_ids_set.add(doc_no.text)
-    document_size = len(docs)
-    batch_size = document_size // NUM_OF_CORES
-    remainder = document_size % NUM_OF_CORES
-    pos_inverted_index = defaultdict(dict)
-    pos_inverted_index["document_size"]["0"] = document_size
-    pos_inverted_index["doc_ids_list"] = list(doc_ids_set)
+) -> InvertedIndex:
+    doc_ids = news_batch.doc_ids
+    document_size = len(doc_ids)
+    source_ids_map = news_batch.source_ids_map
+    inverted_index_meta = InvertedIndexMetadata(
+        document_size=document_size, 
+        doc_ids_list=doc_ids,
+        source_doc_ids=source_ids_map)
+    
+    inverted_index = InvertedIndex(
+        meta=inverted_index_meta,
+        index=defaultdict(lambda: defaultdict(list[str]))
+    )
 
-    batches = [docs[i * batch_size : (i + 1) * batch_size] for i in range(NUM_OF_CORES)]
-    if remainder != 0:
-        # append the remainder to the last batch
-        batches[-1] += docs[-remainder:]
-
-    threads = []
-    for batch in batches:
-        thread = threading.Thread(
-            target=process_batch,
-            args=(batch, pos_inverted_index, stopping, stemming, escape_char, headline),
-        )
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-
-    return pos_inverted_index
+    # cut the fragments into batches
+    for source, fragments in news_batch.fragments.items():
+        curr_time = time.time()
+        batch_size = len(fragments) // NUM_OF_CORES
+        remainder = len(fragments) % NUM_OF_CORES
+        batches = [fragments[i * batch_size : (i + 1) * batch_size] for i in range(NUM_OF_CORES)]
+        if remainder != 0:
+            # append the remainder to the last batch
+            batches[-1] += fragments[-remainder:]
+        
+        threads = []
+        for batch in batches:
+            thread = threading.Thread(
+                target=process_batch,
+                args=(batch, inverted_index, stopping, stemming),
+            )
+            threads.append(thread)
+            thread.start()
+        
+        for thread in threads:
+            thread.join()
+        
+        print(f"Time taken for processing {source}: {time.time() - curr_time:.2f} seconds")
+        
+    return inverted_index
 
 
 # save as binary file
@@ -253,3 +220,8 @@ def load_delta_encoded_index(file_name: str, output_dir: str = "binary_file") ->
     # Apply delta decoding to the loaded data
     index = decode_positions(data)
     return index
+
+if __name__ == "__main__":
+    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 309)
+    inverted_index = positional_inverted_index(news_batch)
+    save_json_file("inverted_index.json", inverted_index.model_dump())
