@@ -21,4 +21,4 @@ if __name__ == "__main__":
     doc_ids_list = list(range(document_size))
 
     # print(index_result)
-    print(doc_ids_list)
+    print(document_size)
