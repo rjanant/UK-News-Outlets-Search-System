@@ -73,10 +73,14 @@ class InvertedIndexMetadata(BaseModel):
     doc_ids_list: List[str]
     """List of document IDs"""
     source_doc_ids: DefaultDict[str, List[str]]
+    
+def default_dict_list():
+    return defaultdict(list)
+
 class InvertedIndex(BaseModel):
     meta: InvertedIndexMetadata
     """Metadata of the index"""
-    index: DefaultDict[str, Annotated[DefaultDict[str, List[int]], Field(default_factory=lambda: defaultdict(list))]]
+    index: DefaultDict[str, Annotated[DefaultDict[str, List[int]], Field(default_factory=default_dict_list)]]
     """Inverted index key: term, value: dictionary of doc_id and list of positions"""
     
 if __name__ == "__main__":

@@ -92,15 +92,22 @@ def load_csv_from_news_source(
     source: Source,
     date: date,
     start_index: int = 0,
+    end_index: int = -1
     ) -> NewsArticlesBatch:
     
     indices = get_indices_for_news_data(source.value, date)
     assert start_index in indices, f"{start_index} is not in the indices list"
-    indices = indices[indices.index(start_index):]
+    
+    end_index = len(indices) - 1 if end_index == -1 else end_index
+    if end_index < start_index or end_index > len(indices):
+        raise ValueError(f"Invalid end_index: {end_index}")
+        
+    
+    indices = indices[indices.index(start_index) : indices.index(end_index) + 1]
     news_fragment_list = []
     current_doc_id = 0
     for index in indices:
-        print(f"Loading {source.value} data {date.strftime('%Y%m%d')}_{index}.csv")
+        print(f"\r{' '*100}\rLoading {source.value} data {date.strftime('%Y%m%d')}_{index}.csv", end="")
         filename = f"{source.value}_data_{date.strftime('%Y%m%d')}_{index}.csv"
         filepath = os.path.join(DATA_PATH, source.value, filename)
         df = pd.read_csv(filepath)
@@ -123,6 +130,9 @@ def load_csv_from_news_source(
         )
         
         news_fragment_list.append(current_news_fragment)
+    
+    # add an new line
+    print()
         
     return NewsArticlesBatch(
         doc_ids=np.arange(current_doc_id).astype(str).tolist(),
@@ -142,4 +152,4 @@ def get_sources(datapath: str) -> List[str]:
     return file_list
 
 if __name__ == "__main__":
-    data = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 309)
+    data = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 300)

@@ -10,9 +10,10 @@ import threading
 from collections import defaultdict
 from typing import DefaultDict, Dict, List
 from common import read_file, get_preprocessed_words, load_csv_from_news_source, save_json_file, load_json_file
-from basetype import InvertedIndex, InvertedIndexMetadata, NewsArticleData, NewsArticlesFragment, NewsArticlesBatch
+from basetype import InvertedIndex, InvertedIndexMetadata, NewsArticleData, NewsArticlesFragment, NewsArticlesBatch, default_dict_list
 from constant import Source
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
 
 CURRENT_DIR = os.getcwd()
 NUM_OF_CORES = os.cpu_count() or 1
@@ -56,7 +57,6 @@ def positional_inverted_index(
     news_batch: NewsArticlesBatch,
     stopping: bool = True,
     stemming: bool = True,
-    escape_char: bool = False,
 ) -> InvertedIndex:
     doc_ids = news_batch.doc_ids
     document_size = len(doc_ids)
@@ -68,7 +68,7 @@ def positional_inverted_index(
     
     inverted_index = InvertedIndex(
         meta=inverted_index_meta,
-        index=defaultdict(lambda: defaultdict(list[str]))
+        index=defaultdict(default_dict_list)
     )
 
     # cut the fragments into batches
@@ -82,16 +82,17 @@ def positional_inverted_index(
             batches[-1] += fragments[-remainder:]
         
         threads = []
-        for batch in batches:
-            thread = threading.Thread(
-                target=process_batch,
-                args=(batch, inverted_index, stopping, stemming),
-            )
-            threads.append(thread)
-            thread.start()
         
-        for thread in threads:
-            thread.join()
+        with ThreadPoolExecutor(max_workers=NUM_OF_CORES) as executor:
+            futures = [executor.submit(process_batch, batch, inverted_index, stopping, stemming) for batch in batches]
+        
+        for future in futures:
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Error processing batch: {e}")
+                traceback.print_exc()
+                exit()
         
         print(f"Time taken for processing {source}: {time.time() - curr_time:.2f} seconds")
         
@@ -222,6 +223,6 @@ def load_delta_encoded_index(file_name: str, output_dir: str = "binary_file") ->
     return index
 
 if __name__ == "__main__":
-    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 309)
+    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 300)
     inverted_index = positional_inverted_index(news_batch)
     save_json_file("inverted_index.json", inverted_index.model_dump())
