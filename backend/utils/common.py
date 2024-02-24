@@ -92,7 +92,8 @@ def load_csv_from_news_source(
     source: Source,
     date: date,
     start_index: int = 0,
-    end_index: int = -1
+    end_index: int = -1,
+    start_doc_id: int = 0,
     ) -> NewsArticlesBatch:
     
     indices = get_indices_for_news_data(source.value, date)
@@ -105,7 +106,7 @@ def load_csv_from_news_source(
     
     indices = indices[indices.index(start_index) : indices.index(end_index) + 1]
     news_fragment_list = []
-    current_doc_id = 0
+    current_doc_id = start_doc_id
     for index in indices:
         print(f"\r{' '*100}\rLoading {source.value} data {date.strftime('%Y%m%d')}_{index}.csv", end="")
         filename = f"{source.value}_data_{date.strftime('%Y%m%d')}_{index}.csv"

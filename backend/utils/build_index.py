@@ -223,6 +223,6 @@ def load_delta_encoded_index(file_name: str, output_dir: str = "binary_file") ->
     return index
 
 if __name__ == "__main__":
-    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 300)
+    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 300, start_doc_id=0)
     inverted_index = positional_inverted_index(news_batch)
     save_json_file("inverted_index.json", inverted_index.model_dump())
