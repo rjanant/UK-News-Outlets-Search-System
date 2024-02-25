@@ -5,7 +5,7 @@ import asyncio
 BASEPATH = os.path.dirname(__file__)
 sys.path.append(BASEPATH)
 
-from redis_utils import get_secret_value, get_redis, update_doc_size, batch_push
+from redis_utils import get_redis_config, get_redis, update_doc_size, batch_push
 
 
 def load_index(path_index="result/inverted_index.json"):
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     filepath = "result/inverted_index.json"
 
     # Ask on discord to get the hardcoded config
-    config_redis = get_secret_value(key="redis-test")
+    config_redis = get_redis_config("dev")
 
     r = get_redis(config_redis)
 
