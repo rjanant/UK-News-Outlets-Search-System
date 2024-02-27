@@ -10,13 +10,10 @@ from common import read_binary_file, get_preprocessed_words, load_batch_from_new
 from basetype import InvertedIndex, InvertedIndexMetadata, NewsArticleData, NewsArticlesFragment, NewsArticlesBatch, default_dict_list
 from constant import Source, CHILD_INDEX_PATH, GLOBAL_INDEX_PATH
 from datetime import date
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 CURRENT_DIR = os.getcwd()
 NUM_OF_CORES = os.cpu_count() or 1
-
-lock = threading.Lock()
-
 
 def process_batch(
     fragment_list: List[NewsArticlesFragment],
@@ -35,21 +32,13 @@ def process_batch(
                     local_index[word][doc_id] = []
                 local_index[word][doc_id].append(position + 1)
     try:
-        lock.acquire()
         for word in local_index:
             for doc_id in local_index[word]:
-                if (
-                    word not in inverted_index.index
-                    or doc_id not in inverted_index.index[word]
-                ):
-                    inverted_index.index[word][doc_id] = []
                 inverted_index.index[word][doc_id] += local_index[word][doc_id]
     except:
         print("Error processing batch")
         traceback.print_exc()
         exit()
-    finally:
-        lock.release()
 
 
 def positional_inverted_index(
@@ -148,7 +137,6 @@ def merge_inverted_indices(global_index: DefaultDict[str, DefaultDict[str, List[
                 global_index[key][doc_id] = child_index[key][doc_id]
             elif doc_id in global_index[key]:
                 print("WARNING: Trying to add new documents under the same doc ID!", key, doc_id)
-
 
 def delta_encode_positions(positions):
     """Convert a list of positions into a delta-encoded list."""
@@ -274,10 +262,16 @@ def build_child_index(
 #     save_json_file("global_index.json", inverted_index.model_dump(), global_index_path)
 #     print(f"Time taken for building global index: {time.time() - start_time:.2f} seconds")
 
+
+
 if __name__ == "__main__":
-    # news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17))
-    # inverted_index = positional_inverted_index(news_batch)
-    # save_json_file("inverted_index.json",
-    #                inverted_index.model_dump(), "index/child")
-    build_child_index(Source.TELE, date(2024, 2, 16))
-    # build_global_index(CHILD_INDEX_PATH, GLOBAL_INDEX_PATH)
+    tasks = [
+        (Source.BBC, date(2024, 2, 17)),
+        (Source.IND, date(2024, 2, 18)),
+        (Source.GBN, date(2024, 2, 18)),
+        (Source.TELE, date(2024, 2, 16))
+    ]
+    
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        executor.map(build_child_index, *zip(*tasks))
+    

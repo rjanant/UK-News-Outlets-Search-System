@@ -7,6 +7,7 @@ import aioredis
 import time
 from tqdm import tqdm
 from basetype import InvertedIndex
+from typing import List
 
 BASEPATH = os.path.dirname(__file__)
 
@@ -80,7 +81,7 @@ async def initialize_async_redis():
             config_redis = get_redis_config()
             redis_async_connection = await aioredis.create_redis_pool(**config_redis)
         else:
-            redis_async_connection.ping()
+            await redis_async_connection.ping()
     except (aioredis.ConnectionClosedError, aioredis.RedisError, aioredis.ConnectionForcedCloseError, Exception):
         print("Catched exception: ", Exception)
         config_redis = get_redis_config()
@@ -124,6 +125,7 @@ def get_val(key):
     value = redis_connection.get(key)
     value = value.decode()
     value = eval(value)
+    print(f"Time taken to get {key}: {time.time() - start_time}")
     return value
 
 @check_async_redis_connection
@@ -140,6 +142,11 @@ async def batch_push(batches):
 
 @check_async_redis_connection
 async def update_index(inverted_index: InvertedIndex):
+    tasks = []
+    for term in inverted_index.index:
+        tasks.append(update_index_term(term, inverted_index))
+    await asyncio.gather(*tasks)
+    
     doc_size = await redis_async_connection.get("meta:document_size")
     doc_ids_list = await redis_async_connection.get("meta:doc_ids_list")
     if not doc_size:
@@ -147,22 +154,18 @@ async def update_index(inverted_index: InvertedIndex):
     else:
         doc_size = int(doc_size) + inverted_index.meta.document_size
 
-    redis_async_connection.set("meta:document_size", doc_size)
     
     if not doc_ids_list:
         doc_ids_list = inverted_index.meta.doc_ids_list
     else:
         doc_ids_list = orjson.loads(doc_ids_list)
         doc_ids_list.extend(inverted_index.meta.doc_ids_list)
-    redis_async_connection.set("meta:doc_ids_list", orjson.dumps(doc_ids_list))
     
-    tasks = []
-    for term in inverted_index.index:
-        tasks.append(update_index_term(term, inverted_index))
-    await asyncio.gather(*tasks)
-    
-    # print("Index updated")
-        
+    await redis_async_connection.mset({
+        "meta:document_size": doc_size,
+        "meta:doc_ids_list": orjson.dumps(doc_ids_list)
+    })
+            
 async def update_index_term(term, inverted_index: InvertedIndex):
     db_value = await redis_async_connection.get(term)
     if not db_value:
@@ -173,8 +176,13 @@ async def update_index_term(term, inverted_index: InvertedIndex):
     for doc_id, pos in inverted_index.index[term].items():
         db_value[doc_id] = pos
     
-    await redis_async_connection.set(term, orjson.dumps(db_value))
-    
+    await redis_async_connection.set(f"w:{term}", orjson.dumps(db_value))
+
+@check_redis_connection
+def clear_redis():
+    redis_connection.flushall()
+    return True
 
 if __name__ == "__main__":
-    print("Location:", BASEPATH)
+    print(clear_redis())
+    # asyncio.run(set_doc_size(0))
