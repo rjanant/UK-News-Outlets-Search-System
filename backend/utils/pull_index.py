@@ -10,7 +10,7 @@ from redis_utils import get_redis_config, get_val, get_doc_size
 
 if __name__ == "__main__":
     # Ask on discord to get the hardcoded config
-    word = "w:men"
+    word = "men"
 
     index_result = get_val(word)
     document_size = get_doc_size()
