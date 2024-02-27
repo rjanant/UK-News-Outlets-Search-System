@@ -1,16 +1,17 @@
-import json
-import os, sys
+import orjson
+import os
+import sys
 import asyncio
 
 BASEPATH = os.path.dirname(__file__)
 sys.path.append(BASEPATH)
 
-from redis_utils import get_redis_config, get_redis, update_doc_size, batch_push
+from redis_utils import get_redis_config, update_doc_size, batch_push
 
 
 def load_index(path_index="result/inverted_index.json"):
     with open(path_index, "r+") as f:
-        data_json = json.load(f)
+        data_json = orjson.loads(f.read())
     return data_json
 
 
@@ -30,13 +31,9 @@ if __name__ == "__main__":
     filepath = "result/inverted_index.json"
 
     # Ask on discord to get the hardcoded config
-    config_redis = get_redis_config("dev")
-
-    r = get_redis(config_redis)
-
     data_json = load_index(path_index=filepath)
     batches = process_dict_in_batches(data_json["index"], minibatch)
 
-    asyncio.run(batch_push(config_redis, batches))
+    asyncio.run(batch_push(batches))
 
-    update_doc_size(r, data_json["meta"]["document_size"])
+    update_doc_size(data_json["meta"]["document_size"])

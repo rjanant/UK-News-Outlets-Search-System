@@ -1,17 +1,14 @@
 import re
-from nltk.stem import PorterStemmer
-from xml.dom import minidom
-from bs4 import BeautifulSoup
-import json
+import orjson
 import traceback
 import os
 import time
 import threading
 from collections import defaultdict
 from typing import DefaultDict, Dict, List
-from common import read_file, get_preprocessed_words, load_csv_from_news_source, save_json_file, load_json_file
+from common import read_binary_file, get_preprocessed_words, load_batch_from_news_source, save_json_file, load_json_file, get_indices_for_news_data
 from basetype import InvertedIndex, InvertedIndexMetadata, NewsArticleData, NewsArticlesFragment, NewsArticlesBatch, default_dict_list
-from constant import Source
+from constant import Source, CHILD_INDEX_PATH, GLOBAL_INDEX_PATH
 from datetime import date
 from concurrent.futures import ThreadPoolExecutor
 
@@ -19,6 +16,7 @@ CURRENT_DIR = os.getcwd()
 NUM_OF_CORES = os.cpu_count() or 1
 
 lock = threading.Lock()
+
 
 def process_batch(
     fragment_list: List[NewsArticlesFragment],
@@ -53,6 +51,7 @@ def process_batch(
     finally:
         lock.release()
 
+
 def positional_inverted_index(
     news_batch: NewsArticlesBatch,
     stopping: bool = True,
@@ -60,12 +59,10 @@ def positional_inverted_index(
 ) -> InvertedIndex:
     doc_ids = news_batch.doc_ids
     document_size = len(doc_ids)
-    source_ids_map = news_batch.source_ids_map
     inverted_index_meta = InvertedIndexMetadata(
-        document_size=document_size, 
-        doc_ids_list=doc_ids,
-        source_doc_ids=source_ids_map)
-    
+        document_size=document_size,
+        doc_ids_list=doc_ids)
+
     inverted_index = InvertedIndex(
         meta=inverted_index_meta,
         index=defaultdict(default_dict_list)
@@ -76,16 +73,15 @@ def positional_inverted_index(
         curr_time = time.time()
         batch_size = len(fragments) // NUM_OF_CORES
         remainder = len(fragments) % NUM_OF_CORES
-        batches = [fragments[i * batch_size : (i + 1) * batch_size] for i in range(NUM_OF_CORES)]
+        batches = [
+            fragments[i * batch_size: (i + 1) * batch_size] for i in range(NUM_OF_CORES)]
         if remainder != 0:
             # append the remainder to the last batch
             batches[-1] += fragments[-remainder:]
-        
-        threads = []
-        
+
         with ThreadPoolExecutor(max_workers=NUM_OF_CORES) as executor:
             futures = [executor.submit(process_batch, batch, inverted_index, stopping, stemming) for batch in batches]
-        
+
         for future in futures:
             try:
                 future.result()
@@ -93,9 +89,9 @@ def positional_inverted_index(
                 print(f"Error processing batch: {e}")
                 traceback.print_exc()
                 exit()
-        
+
         print(f"Time taken for processing {source}: {time.time() - curr_time:.2f} seconds")
-        
+
     return inverted_index
 
 
@@ -110,7 +106,8 @@ def save_index_file(
     for term, record in index_output.items():
         if term == "document_size" or term == "doc_ids_list":
             continue
-        index_output[term] = dict(sorted(record.items(), key=lambda x: int(x[0])))
+        index_output[term] = dict(
+            sorted(record.items(), key=lambda x: int(x[0])))
 
     with open(os.path.join(CURRENT_DIR, output_dir, file_name), "wb") as f:
         for term, record in index_output.items():
@@ -128,56 +125,40 @@ def save_index_file(
 def load_binary_index(file_name: str, output_dir: str = "binary_file") -> dict:
     with open(os.path.join(CURRENT_DIR, output_dir, file_name), "rb") as f:
         data = f.read().decode("utf8")
-    return json.loads(data)
+    return orjson.loads(data)
 
+def merge_inverted_indices(global_index: DefaultDict[str, DefaultDict[str, List[int]]], child_index: DefaultDict[str, DefaultDict[str, List[int]]]):
+    
+    if not global_index:
+        global_index.update(child_index)
+        return
 
-def add_two_inverted_indexes(index_old, index_new):
-    index_being_updated = index_old
-
-    # add words in index_new_small not in index_big_old
-    keys_unique_to_index_new_small = set(index_old.keys()) - set(index_new.keys())
-
-    for key in keys_unique_to_index_new_small:
-        index_being_updated[key] = index_new[key]
-
-    # Now, we have to check for the words that are in both indexes to
-    # update the posting list for the same word in both indexes
-    keys_in_both_indexes = {
-        key
-        for key in index_old.keys() & index_new.keys()
-        if index_old[key]
-        and index_new[key]
-        and key != "document_size"
-        and key != "doc_ids_list"
-    }
+    child_index_set = set(child_index.keys())
+    global_index_set = set(global_index.keys())
+    new_keys = child_index_set - global_index_set
+    common_keys = child_index_set & global_index_set
 
     # the docID must be new!
-    for key in keys_in_both_indexes:
-        for doc_id in index_new[key]:
-            if doc_id not in index_old[key]:
-                try:
-                    index_being_updated[key][str(doc_id)] = index_new[key][str(doc_id)]
-                    print(f"Added {key} for doc_id {doc_id}")
-                except:
-                    print(f"Error updating {key} for doc_id {doc_id}")
-            elif doc_id in index_old[key]:
-                print(
-                    "WARNING: Trying to add new documents under the same doc ID!",
-                    key,
-                    doc_id,
-                )
-
-    return index_being_updated
+    for key in new_keys:
+        global_index[key] = child_index[key]
+    
+    for key in common_keys:
+        for doc_id in child_index[key]:
+            if doc_id not in global_index[key]:
+                global_index[key][doc_id] = child_index[key][doc_id]
+            elif doc_id in global_index[key]:
+                print("WARNING: Trying to add new documents under the same doc ID!", key, doc_id)
 
 
-
-def delta_encode(positions):
+def delta_encode_positions(positions):
     """Convert a list of positions into a delta-encoded list."""
     if not positions:
         return []
     # The first position remains the same, others are differences from the previous one
-    delta_encoded = [positions[0]] + [positions[i] - positions[i-1] for i in range(1, len(positions))]
+    delta_encoded = [positions[0]] + [positions[i] - positions[i-1]
+                                      for i in range(1, len(positions))]
     return delta_encoded
+
 
 def save_delta_index_file(file_name: str, index: DefaultDict[str, Dict[str, list]], output_dir: str = "binary_file"):
     if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
@@ -191,17 +172,19 @@ def save_delta_index_file(file_name: str, index: DefaultDict[str, Dict[str, list
             f.write(f"{term} {len(record)}\n".encode("utf8"))
             for doc_id, positions in record.items():
                 # Apply delta encoding here
-                delta_positions = delta_encode(positions)
+                delta_positions = delta_encode_positions(positions)
                 # Convert delta-encoded positions back to strings for storage
                 positions_str = ','.join(str(pos) for pos in delta_positions)
                 f.write(f"\t{doc_id}: {positions_str}\n".encode("utf8"))
 
-def delta_decode(delta_encoded):
+
+def delta_decode_positions(delta_encoded):
     """Reconstruct the original list of positions from a delta-encoded list."""
     positions = [delta_encoded[0]] if delta_encoded else []
     for delta in delta_encoded[1:]:
         positions.append(positions[-1] + delta)
     return positions
+
 
 def decode_positions(data):
     """Recursively decode delta-encoded position lists in the index data."""
@@ -209,20 +192,92 @@ def decode_positions(data):
         return {key: decode_positions(value) for key, value in data.items()}
     elif isinstance(data, list) and all(isinstance(x, int) for x in data):
         # Assuming the list is of integers, decode it if it's delta-encoded
-        return delta_decode(data)
+        return delta_decode_positions(data)
     else:
         return data
+
+def delta_encoding(index: DefaultDict[str, Dict[str, list]]):
+    for term, record in index.items():
+        for doc_id, positions in record.items():
+            index[term][doc_id] = delta_encode_positions(positions)
+
+def delta_decoding(index: DefaultDict[str, Dict[str, list]]):
+    for term, record in index.items():
+        for doc_id, positions in record.items():
+            index[term][doc_id] = delta_decode_positions(positions)
 
 def load_delta_encoded_index(file_name: str, output_dir: str = "binary_file") -> dict:
     path = os.path.join(CURRENT_DIR, output_dir, file_name)
     with open(path, "rb") as f:
-        data = json.loads(f.read().decode("utf8"))
-    
+        data = orjson.loads(f.read().decode("utf8"))
+
     # Apply delta decoding to the loaded data
     index = decode_positions(data)
     return index
 
+
+def build_child_index(
+    source: Source,
+    date: date,
+    interval=10,
+):  
+    # file name format: {source_name}_{YYYY-MM-DD}_{start_number}_{end_number}.json
+    time_str = date.strftime("%Y-%m-%d")
+    pattern = re.compile(f"{source.value}_{time_str}_([0-9]+)_([0-9]+).json")
+    child_index_file_list = [file for file in os.listdir(CHILD_INDEX_PATH) if pattern.match(file)]
+    last_index = -1
+    for file in child_index_file_list:
+        # split by .csv
+        file_name = file.split(".")[0]
+        # split by _
+        file_info = file_name.split("_")
+        if int(file_info[-1]) > last_index:
+            last_index = int(file_info[-1])
+    
+    indices = get_indices_for_news_data(source.value, date)
+    
+    # prune the indices
+    indices = [index for index in indices if index > last_index]
+        
+    # divide the indices into intervals
+    indices_batches = [ indices[i:i+interval] for i in range(0, len(indices), interval) ]
+    for indices_batch in indices_batches:
+        news_batch = load_batch_from_news_source(source, date, indices_batch[0], indices_batch[-1])
+        inverted_index = positional_inverted_index(news_batch)
+        delta_encoding(inverted_index.index)
+        save_json_file(f"{source.value}_{date}_{indices_batch[0]}_{indices_batch[-1]}.json", inverted_index.model_dump(), "index/child")
+        
+# # this one is failed
+# def build_global_index(child_index_path: str, global_index_path: str):
+#     start_time = time.time()
+#     document_size = 0
+#     doc_ids_list = []
+#     index = defaultdict(default_dict_list)
+#     child_index_file_list = [file for file in os.listdir(child_index_path) if file.endswith(".json")]
+#     for file in child_index_file_list:
+#         child_index = InvertedIndex.model_validate_json(read_binary_file(os.path.join(child_index_path, file)))
+#         document_size += child_index.meta.document_size
+#         doc_ids_list.extend(child_index.meta.doc_ids_list)
+#         merge_inverted_indices(index, child_index.index)
+#         print(f"Processed {file}")
+    
+#     print(f"Finsihed processing {len(child_index_file_list)} child index files")
+    
+#     inverted_index_meta = InvertedIndexMetadata(
+#         document_size=document_size,
+#         doc_ids_list=doc_ids_list)
+#     inverted_index = InvertedIndex(
+#         meta=inverted_index_meta,
+#         index=index
+#     )
+    
+#     save_json_file("global_index.json", inverted_index.model_dump(), global_index_path)
+#     print(f"Time taken for building global index: {time.time() - start_time:.2f} seconds")
+
 if __name__ == "__main__":
-    news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17), 300, start_doc_id=0)
-    inverted_index = positional_inverted_index(news_batch)
-    save_json_file("inverted_index.json", inverted_index.model_dump())
+    # news_batch = load_csv_from_news_source(Source.BBC, date(2024, 2, 17))
+    # inverted_index = positional_inverted_index(news_batch)
+    # save_json_file("inverted_index.json",
+    #                inverted_index.model_dump(), "index/child")
+    build_child_index(Source.TELE, date(2024, 2, 16))
+    # build_global_index(CHILD_INDEX_PATH, GLOBAL_INDEX_PATH)

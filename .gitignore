@@ -166,3 +166,4 @@ grounded*.json
 clientLibraryConfig-github.json
 data/
 backend/utils/result/
+backend/utils/index

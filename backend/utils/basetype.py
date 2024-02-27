@@ -19,7 +19,7 @@ class NewsArticleData(BaseModel):
     date: str
     """Date of the news YYYY/MM/DD"""
     doc_id: str
-    """Relative reference ID of the news of respective fragment (Only unique within the fragment)"""
+    """doc_id of the news"""
     content: str
     """Content of the news"""
     hypertext: DefaultDict[str, str]
@@ -57,10 +57,8 @@ class NewsArticlesFragment(BaseModel):
 
 class NewsArticlesBatch(BaseModel):
     """Used to represent single batch of source/combined news articles for different sources"""
-    doc_ids: List[str]
-    """Document IDs of the news articles (unique only within the batch)"""
-    source_ids_map: DefaultDict[str, List[str]]
-    """Mapping of source to document IDs for filtering purposes (Later could get source by traversing the list)"""
+    doc_ids: List[int]
+    """Document IDs of the news articles"""
     indices: DefaultDict[str, List[str]]
     """Indices of the news articles for each source"""
     fragments: DefaultDict[str, List[NewsArticlesFragment]]
@@ -70,9 +68,8 @@ class NewsArticlesBatch(BaseModel):
 class InvertedIndexMetadata(BaseModel):
     document_size: int
     """Number of documents in the index"""
-    doc_ids_list: List[str]
+    doc_ids_list: List[int]
     """List of document IDs"""
-    source_doc_ids: DefaultDict[str, List[str]]
     
 def default_dict_list():
     return defaultdict(list)
