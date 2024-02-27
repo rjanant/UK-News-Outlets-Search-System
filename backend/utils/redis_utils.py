@@ -14,14 +14,14 @@ redis_async_connection = None
 redis_connection = None 
 redis_config = None
 
-def get_redis_config(env="dev", db_index=0):
+def get_redis_config(env="prod", is_async=True):
     # pip install python-dotenv
     from dotenv import load_dotenv
 
-    if env == "prod":
-        cfg_path = os.path.join(BASEPATH, "redis_config_prod.env")
-    else:
+    if env == "dev":
         cfg_path = os.path.join(BASEPATH, "redis_config_dev.env")
+    else:
+        cfg_path = os.path.join(BASEPATH, "redis_config_prod.env")
 
     load_dotenv(cfg_path)
 
@@ -29,7 +29,10 @@ def get_redis_config(env="dev", db_index=0):
     REDIS_PORT = os.environ.get("REDIS_PORT")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
 
-    config_redis = {"host": REDIS_HOST, "port": REDIS_PORT, "password": REDIS_PASSWORD, "db": db_index}
+    if is_async:
+        config_redis = {'address': (REDIS_HOST, REDIS_PORT), "password": REDIS_PASSWORD}
+    else:
+        config_redis = {"host": REDIS_HOST, "port": REDIS_PORT, "password": REDIS_PASSWORD}
 
     return config_redis
 
@@ -158,7 +161,7 @@ async def update_index(inverted_index: InvertedIndex):
         tasks.append(update_index_term(term, inverted_index))
     await asyncio.gather(*tasks)
     
-    print("Index updated")
+    # print("Index updated")
         
 async def update_index_term(term, inverted_index: InvertedIndex):
     db_value = await redis_async_connection.get(term)
