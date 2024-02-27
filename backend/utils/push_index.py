@@ -3,10 +3,15 @@ import os
 import sys
 import asyncio
 
+from tqdm import tqdm
+
 BASEPATH = os.path.dirname(__file__)
 sys.path.append(BASEPATH)
 
-from redis_utils import get_redis_config, update_doc_size, batch_push
+# from redis_utils import get_redis_config, update_doc_size, batch_push
+from common import read_file
+from basetype import InvertedIndex
+from redis_utils import initialize_async_redis, update_index, get_redis_config
 
 
 def load_index(path_index="result/inverted_index.json"):
@@ -16,6 +21,7 @@ def load_index(path_index="result/inverted_index.json"):
 
 
 def process_dict_in_batches(input_dict, batch_size, prefix="w:"):
+    """Deprecated soon"""
     keys = list(input_dict.keys())
     num_keys = len(keys)
     batches = []
@@ -25,15 +31,30 @@ def process_dict_in_batches(input_dict, batch_size, prefix="w:"):
         batches.append(batch)
     return batches
 
+# def do_push_index():
 
 if __name__ == "__main__":
-    minibatch = 15
-    filepath = "result/inverted_index.json"
+    config_redis = get_redis_config("")
+    print(config_redis["address"])
 
-    # Ask on discord to get the hardcoded config
-    data_json = load_index(path_index=filepath)
-    batches = process_dict_in_batches(data_json["index"], minibatch)
+    initialize_async_redis()
 
-    asyncio.run(batch_push(batches))
+    INDEX_PATH = os.path.join(BASEPATH, "index", "child")
+    files = os.listdir(INDEX_PATH)
+    for f in tqdm(files):
+        filepath = os.path.join(BASEPATH, "index", "child", f)
+        inverted_index_str = read_file(filepath)
+        inverted_index = InvertedIndex.model_validate_json(inverted_index_str)
+        asyncio.run( update_index(inverted_index) )
 
-    update_doc_size(data_json["meta"]["document_size"])
+
+    # minibatch = 15
+    # filepath = "result/inverted_index.json"
+
+    # # Ask on discord to get the hardcoded config
+    # data_json = load_index(path_index=filepath)
+    # batches = process_dict_in_batches(data_json["index"], minibatch)
+
+    # asyncio.run(batch_push(batches))
+
+    # update_doc_size(data_json["meta"]["document_size"])
