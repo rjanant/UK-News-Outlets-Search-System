@@ -3,7 +3,7 @@ import os
 import sys
 import asyncio
 
-from tqdm import tqdm
+# from tqdm import tqdm
 
 BASEPATH = os.path.dirname(__file__)
 sys.path.append(BASEPATH)
@@ -31,22 +31,21 @@ def process_dict_in_batches(input_dict, batch_size, prefix="w:"):
         batches.append(batch)
     return batches
 
+
 # def do_push_index():
 
 if __name__ == "__main__":
     config_redis = get_redis_config("")
     print(config_redis["address"])
 
-    initialize_async_redis()
-
     INDEX_PATH = os.path.join(BASEPATH, "index", "child")
     files = os.listdir(INDEX_PATH)
-    for f in tqdm(files):
+    for idx, f in enumerate(files):
         filepath = os.path.join(BASEPATH, "index", "child", f)
         inverted_index_str = read_file(filepath)
         inverted_index = InvertedIndex.model_validate_json(inverted_index_str)
-        asyncio.run( update_index(inverted_index) )
-
+        asyncio.run(update_index(inverted_index))
+        print(f"\r{' '*100}\r IDX: {idx}", end="")
 
     # minibatch = 15
     # filepath = "result/inverted_index.json"

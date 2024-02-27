@@ -64,13 +64,13 @@ def initialize_sync_redis():
     global redis_connection
     try:
         if not redis_connection:
-            config_redis = get_redis_config()
+            config_redis = get_redis_config(is_async=False)
             redis_connection = redis.StrictRedis(**config_redis)
         else:
             redis_connection.ping()
     except (redis.ConnectionError, redis.RedisError, Exception):
         print("Catched exception: ", Exception)
-        config_redis = get_redis_config()
+        config_redis = get_redis_config(is_async=False)
         redis_connection = redis.StrictRedis(**config_redis)
 
 async def initialize_async_redis():
@@ -101,7 +101,7 @@ def check_async_redis_connection(func):
     return wrapper
 
 @check_redis_connection
-def update_doc_size(new_size, colname="document_size"):
+def update_doc_size(new_size, colname="meta:document_size"):
     doc_size = redis_connection.get(colname)
 
     if not (doc_size):
@@ -114,7 +114,7 @@ def update_doc_size(new_size, colname="document_size"):
     return True
 
 @check_redis_connection
-def get_doc_size(colname="document_size"):
+def get_doc_size(colname="meta:document_size"):
     doc_size = redis_connection.get(colname)
     return int(doc_size)
 
@@ -147,14 +147,14 @@ async def update_index(inverted_index: InvertedIndex):
     else:
         doc_size = int(doc_size) + inverted_index.meta.document_size
 
-    redis_async_connection.set("document_size", doc_size)
+    redis_async_connection.set("meta:document_size", doc_size)
     
     if not doc_ids_list:
         doc_ids_list = inverted_index.meta.doc_ids_list
     else:
         doc_ids_list = orjson.loads(doc_ids_list)
         doc_ids_list.extend(inverted_index.meta.doc_ids_list)
-    redis_async_connection.set("doc_ids_list", orjson.dumps(doc_ids_list))
+    redis_async_connection.set("meta:doc_ids_list", orjson.dumps(doc_ids_list))
     
     tasks = []
     for term in inverted_index.index:
