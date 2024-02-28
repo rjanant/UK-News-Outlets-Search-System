@@ -23,7 +23,7 @@ pip install -r requirements.txt
 docker build -t fastapi:latest .
 
 # docker run:
-docker run -d -p 8000:8000 fastapi
+docker run -d -p 8080:8080 fastapi
 
 # deployment:
 create commit to branch "deploy"

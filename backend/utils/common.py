@@ -13,6 +13,9 @@ import numpy as np
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
+stemmer = PorterStemmer()
+stop_words = None
+
 def read_file(file_name: str, input_dir: str = "result") -> str:
     with open(os.path.join(CURRENT_DIR, input_dir, file_name), "r") as f:
         content = f.read()
@@ -35,15 +38,18 @@ def get_stop_words(file_name: str = STOP_WORDS_FILE) -> list:
 
 def remove_stop_words(tokens: list) -> list:
     assert os.path.exists(os.path.join(CURRENT_DIR, STOP_WORDS_FILE)), f"File {STOP_WORDS_FILE} does not exist"
-    stop_words = get_stop_words(STOP_WORDS_FILE)
+    global stop_words
+    if stop_words is None:
+        stop_words = get_stop_words()
     return [token for token in tokens if token not in stop_words]
 
 def tokenize(content: str) -> list:
-    return re.findall(r"\w+", content)
+    tokens = re.findall(r"\w+", content)
+    # remove string that does not contain any english characters or digits
+    tokens = [token for token in tokens if re.search(r"[a-zA-Z0-9]", token)]
+    return tokens
 
 def get_stemmed_words(tokens: list) -> list:
-    # stemming
-    stemmer = PorterStemmer()
     words = [stemmer.stem(token) for token in tokens]
     return words
 

@@ -1,21 +1,15 @@
 import os
 import sys
-
-BASEPATH = os.path.dirname(__file__)
-sys.path.append(BASEPATH)
-
-
-
-from redis_utils import get_redis_config, get_val, get_doc_size
+from redis_utils import get_val, get_doc_size, get_doc_ids_list
 
 if __name__ == "__main__":
     # Ask on discord to get the hardcoded config
     word = "men"
 
-    index_result = get_val(word)
+    # index_result = get_val(word)
     document_size = get_doc_size()
-
-    doc_ids_list = list(range(document_size))
+    doc_ids_list = get_doc_ids_list()
 
     # print(index_result)
     print(document_size)
+    print(len(doc_ids_list))

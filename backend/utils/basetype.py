@@ -4,6 +4,7 @@ from typing import List, DefaultDict, Annotated
 from datetime import date
 from collections import defaultdict
 from typing import List, DefaultDict
+from enum import Enum
 
 class Result(BaseModel):
     id: str
@@ -79,7 +80,12 @@ class InvertedIndex(BaseModel):
     """Metadata of the index"""
     index: DefaultDict[str, Annotated[DefaultDict[str, List[int]], Field(default_factory=default_dict_list)]]
     """Inverted index key: term, value: dictionary of doc_id and list of positions"""
-    
+class RedisKeys:
+    document_size = "meta:document_size"
+    doc_ids_list = "meta:doc_ids_list"
+    index = lambda term: f"w:{term}"
+        
+
 if __name__ == "__main__":
     json_string = """
     {
@@ -105,5 +111,4 @@ if __name__ == "__main__":
     }
     """
     index = InvertedIndex.model_validate_json(json_string)
-    print(index)
-    
+    print(index)    
