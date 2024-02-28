@@ -26,9 +26,9 @@ def get_redis_config(env="prod", is_async=True):
 
     load_dotenv(cfg_path)
 
-    REDIS_HOST = os.environ.get("REDIS_HOST")
-    REDIS_PORT = os.environ.get("REDIS_PORT")
-    REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
+    REDIS_HOST = os.environ.get("REDIS_HOST") or os.getenv("REDIS_HOST")
+    REDIS_PORT = os.environ.get("REDIS_PORT") or os.getenv("REDIS_PORT")
+    REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD") or os.getenv("REDIS_PASSWORD")
 
     if is_async:
         config_redis = {'address': (REDIS_HOST, REDIS_PORT), "password": REDIS_PASSWORD}
