@@ -1,13 +1,17 @@
 import re
-from nltk.stem import PorterStemmer
 import traceback
 import os
 import time
-from collections import defaultdict
 import math
-from typing import DefaultDict, Dict
-from basetype import InvertedIndex
-from common import read_file, get_stop_words, save_json_file, get_preprocessed_words
+import asyncio
+import sys
+sys.path.append(os.path.dirname(__file__))
+from nltk.stem import PorterStemmer
+from typing import DefaultDict, Dict, List
+from common import read_file, get_stop_words, get_preprocessed_words
+from redis_utils import get_doc_size, get_doc_ids_list, get_values, is_key_exists, get_value
+from build_index import delta_decode_positions
+from basetype import RedisKeys
 
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -57,73 +61,74 @@ def handle_binary_operator(operator: str, left: list, right: list) -> list:
 
 def handle_not_operator(operand: list, doc_ids_list: list) -> list:
     print("NOT operation")
+    if operand is None:
+        return doc_ids_list
     return list(set(doc_ids_list) - set(operand))
 
-def get_doc_ids_from_string(string: str, inverted_index: Dict, doc_ids_list: list, negate: bool = False) -> list:
+async def get_doc_ids_from_string(string: str) -> List[int]:
     # check if string is a phrase bounded by double quotes 
-    if string in inverted_index:
-        if negate:
-            return negate_doc_ids(list(inverted_index[string].keys()), doc_ids_list)
-        else:
-            return list(inverted_index[string].keys()) if inverted_index[string] else []
+    if await is_key_exists(RedisKeys.index(string)):
+        term_index = await get_value(RedisKeys.index(string))
+        return list(term_index.keys())
+    else:
+        return []
 
-def get_doc_ids_from_pattern(pattern: str, inverted_index: Dict, doc_ids_list: list, negate: bool = False):
+async def get_doc_ids_from_pattern(pattern: str) -> List[int]:
     # pattern is of the form "A B"/"A B C" etc
     # retrieve words from the pattern
     doc_ids = []
     words = re.findall(r"\w+", pattern)
     # check if the word are in consecutive positions
-    for doc_id in inverted_index[words[0]]:
-        positions = inverted_index[words[0]][doc_id]
+    words_index = await get_values([RedisKeys.index(word) for word in words])
+    for doc_id in words_index[0]:
+        positions = delta_decode_positions(words_index[0][doc_id])
         for pos in positions:
             try:
-                if all([pos + i in inverted_index[words[i]][doc_id] for i in range(1, len(words))]) and doc_id not in doc_ids:
+                if all([pos + i in words_index[i][doc_id] for i in range(1, len(words))]) and doc_id not in doc_ids:
                     doc_ids.append(doc_id)
             except:
                 pass
-    if negate:
-        return negate_doc_ids(doc_ids, doc_ids_list)
-    else:
-        return doc_ids
+
+    return doc_ids
 
 
 def negate_doc_ids(doc_ids: list, doc_ids_list: list) -> list:
     return list(set(doc_ids_list) - set(doc_ids))
 
-def evaluate_proximity_pattern(n: int, w1: str, w2: str, doc_ids_list: list, inverted_index: dict) -> list:
+async def evaluate_proximity_pattern(n: int, w1: str, w2: str, doc_ids_list: list) -> List[int]:
     # find all the doc_ids for w1 and w2
-    doc_ids_for_w1 = get_doc_ids_from_string(w1, inverted_index, doc_ids_list)
+    doc_ids_for_w1 = await get_doc_ids_from_string(w1)
     # find the doc_ids that satisfy the condition
     doc_ids = []
     for doc_id in doc_ids_for_w1:
         try:
-            positions_for_w1 = inverted_index[w1][doc_id]
-            positions_for_w2 = inverted_index[w2][doc_id]
+            values = await get_values([RedisKeys.index(w1), RedisKeys.index(w2)])
+            positions_for_w1 = delta_decode_positions(values[0][doc_id])
+            positions_for_w2 = delta_decode_positions(values[1][doc_id])
             if any([abs(pos1 - pos2) <= int(n) for pos1 in positions_for_w1 for pos2 in positions_for_w2]):
                 doc_ids.append(doc_id)
         except:
             pass
     return doc_ids
 
-def evaluate_subquery(subquery: str, inverted_index: dict, doc_ids_list: list, special_patterns: dict[str, re.Pattern]) -> list:
+async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patterns: dict[str, re.Pattern]) -> List[int]:
     
     proximity_match = re.match(special_patterns['proximity'], subquery)
     exact_match = re.match(special_patterns['exact'], subquery)
-    print("subquery", subquery)
     if proximity_match:
         n = proximity_match.group(1)
         w1 = proximity_match.group(2)
         w2 = proximity_match.group(3)
         print("Handle proximity pattern", n, w1, w2)
-        return evaluate_proximity_pattern(n, w1, w2, doc_ids_list, inverted_index)
+        return await evaluate_proximity_pattern(n, w1, w2, doc_ids_list)
     else:
         # there is no NOT operator
         if exact_match:
             print("handle phrase", subquery[1:-1])
-            return get_doc_ids_from_pattern(subquery[1:-1], inverted_index, doc_ids_list)
+            return await get_doc_ids_from_pattern(subquery[1:-1])
         else:
             print("handle word(s)", subquery)
-            return get_doc_ids_from_string(subquery, inverted_index, doc_ids_list)
+            return await get_doc_ids_from_string(subquery)
 
 def read_boolean_queries(file_name: str) -> list:
     queries = []
@@ -144,13 +149,20 @@ def read_ranked_queries(file_name: str) -> list:
         
     return queries
 
-def calculate_tf_idf(inverted_index: dict, tokens: list, doc_id: str, docs_size: int) -> float:
+async def calculate_tf_idf(tokens: List, doc_id: str, docs_size: int) -> float:
     tf_idf_score = 0
     for token in tokens:
-        if token not in inverted_index or doc_id not in inverted_index[token]:
+        # if token not in inverted_index or doc_id not in inverted_index[token]:
+        #     continue
+        if not await is_key_exists(RedisKeys.index(token)):
             continue
-        tf = 1 + math.log10(len(inverted_index[token][doc_id]))
-        idf = math.log10(docs_size / len(inverted_index[token]))
+        
+        token_index = await get_value(RedisKeys.index(token))
+        if doc_id not in token_index:
+            continue
+        
+        tf = 1 + math.log10(len(token_index[doc_id]))
+        idf = math.log10(docs_size / len(token_index))
         tf_idf_score += tf * idf
     return tf_idf_score
 
@@ -214,7 +226,7 @@ def is_valid_query(query: str) -> bool:
                 print("Parentheses count is less than 0")
                 return False
         elif token == "NOT":
-            if prev_token and (not is_operator(prev_token) or prev_token == '('):
+            if prev_token and (not is_operator(prev_token) and prev_token != '('):
                 print("Invalid NOT position")
                 return False
         elif is_operator(token):
@@ -231,18 +243,30 @@ def is_valid_query(query: str) -> bool:
         return False
     return True
 
-def evaluate_boolean_query(query: str, inverted_index: dict, doc_ids_list: list, stopping: bool = True, stemming: bool = True, special_patterns: dict[str, re.Pattern] = SPECIAL_PATTERN) -> list:
+async def evaluate_boolean_query(query: str,
+                                 doc_ids_list: List[int],
+                                 stopping: bool = True,
+                                 stemming: bool = True,
+                                 special_patterns: dict[str, re.Pattern] = SPECIAL_PATTERN) -> List:
+    # query = " ".join([token.lower() if token not in ["AND", "OR", "NOT"] else token for token in query.split("\w+ ")])
     query = re.sub(r"(\w+)", lambda x: preprocess_match(x, stopping, stemming), query)
-    query = " ".join([token.lower() if token not in ["AND", "OR", "NOT"] else token for token in query.split(" ")])
+    print(query)
     if not is_valid_query(query):
         print("Invalid query: ", query)
         return []
+    
     postfix = infix_to_postfix(query, special_patterns['spliter'])
     
-    for token in postfix:
-        token = re.sub(r"(\w+)", lambda x: preprocess_match(x, stopping, stemming), token)
     print("postfix", postfix)
 
+    # evalute the value for the stuff first
+    tasks = [evaluate_subquery(token, doc_ids_list, special_patterns) for token in postfix if not is_operator(token)]
+    results = await asyncio.gather(*tasks)
+    for idx, token in enumerate(postfix):
+        if not is_operator(token):
+            postfix[idx] = results.pop(0)
+    print("postfix", postfix)
+    
     try:
         stack = []
         for token in postfix:
@@ -256,8 +280,8 @@ def evaluate_boolean_query(query: str, inverted_index: dict, doc_ids_list: list,
                     result = handle_binary_operator(token, left, right)
                 stack.append(result)
             else:
-                result = evaluate_subquery(token, inverted_index, doc_ids_list, special_patterns)
-                stack.append(result)
+                # token is an operand
+                stack.append(token)
         return stack.pop()
 
     except:
@@ -265,56 +289,50 @@ def evaluate_boolean_query(query: str, inverted_index: dict, doc_ids_list: list,
         traceback.print_exc()
         exit()
         
-def evaluate_ranked_query(queries: list, index: DefaultDict, max_result: int = 150, stopping: bool = True, stemming:bool = True) -> list:
+async def evaluate_ranked_query(query: str, docs_size:int, max_result: int = 10, stopping: bool = True, stemming:bool = True) -> list:
+
+    words = get_preprocessed_words(query, stopping, stemming)
+    doc_ids = set()
+    doc_ids_tasks = [get_value(RedisKeys.index(word)) for word in words if await is_key_exists(RedisKeys.index(word))]
+    doc_ids_results = await asyncio.gather(*doc_ids_tasks)
+    for result in doc_ids_results:
+        doc_ids = doc_ids.union(result.keys())
+    
+    doc_ids = list(doc_ids)
+    scores = []
+    
+    score_tasks = [calculate_tf_idf(words, doc_id, docs_size) for doc_id in doc_ids]
+    score_results = await asyncio.gather(*score_tasks)
+    for idx, doc_id in enumerate(doc_ids):
+        scores.append((doc_id, score_results[idx]))
+    # sort by the score and the doc_id
+    scores.sort(key=lambda x: (-x[1], x[0]))
+
+    return scores[:max_result]
+
+async def boolean_test(boolean_queries: List[str] = ["\"Comic Relief\" AND (NOT wtf OR #1(Comic, Relief))"]) -> List[List[str]]:
+    doc_ids_list = await get_doc_ids_list()
+    start_time = time.time()
     results = []
-    docs_size = int(index['document_size']['0'])
-    for query_id, query in queries:
-        words = get_preprocessed_words(query, stopping, stemming)
-        print(words)
-        doc_ids = set()
-        for word in words:
-            if word in index:
-                doc_ids = doc_ids.union(set(index[word].keys()))
-        
-        doc_ids = list(doc_ids)
-        scores = []
-        for doc_id in doc_ids:
-            scores.append((doc_id, calculate_tf_idf(index, words, doc_id, docs_size)))
-        # sort by the score and the doc_id
-        scores.sort(key=lambda x: (-x[1], x[0]))
-        results.append((query_id, scores[:max_result]))
+    for query in boolean_queries:
+        results.append(await evaluate_boolean_query(query, doc_ids_list))
+    print("Time taken to process boolean queries", time.time() - start_time)
     return results
 
-def save_boolean_queries_result(results: list, output_dir: str = "result"):
-    if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
-        os.mkdir(os.path.join(CURRENT_DIR, output_dir))
-    with open(os.path.join(CURRENT_DIR, output_dir, 'results.boolean.txt'), "w") as f:
-        for query_id, result in results:
-            for doc_id in result:
-                f.write(f"{query_id},{doc_id}\n")
-                
-def save_ranked_queries_result(results: list, output_dir: str = "result"):
-    if not os.path.exists(os.path.join(CURRENT_DIR, output_dir)):
-        os.mkdir(os.path.join(CURRENT_DIR, output_dir))
-    with open(os.path.join(CURRENT_DIR, output_dir, 'results.ranked.txt'), "w") as f:
-        for query_id, result in results:
-            for retrieved_doc_result in result:
-                doc_id, score = retrieved_doc_result
-                f.write(f"{query_id},{doc_id},{score:.4f}\n")
+async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List[str]]:
+    doc_size = await get_doc_size()
+    start_time = time.time()
+    results = []
+    for query in ranked_queries:
+        results.append(await evaluate_ranked_query(query, doc_size))
+    print("Time taken to process ranked queries", time.time() - start_time)
+    return results
+    
+async def main():
+    await ranked_test()
 
 if __name__ == "__main__":
-    ### loading index
-    start_time = time.time()
-    inverted_index_str = read_file("inverted_index.json")
-    inverted_index = InvertedIndex.model_validate_json(inverted_index_str)
-    print("Time taken to load index", time.time() - start_time)
-    
-    queries = ["\"Comic Relief\""]
-    doc_ids_list = inverted_index.meta.doc_ids_list
-    start_time = time.time()
-    for query in queries:
-        print(evaluate_boolean_query(query, inverted_index.index, doc_ids_list))
-    print("Time taken to process boolean queries", time.time() - start_time)
+    asyncio.run(main())
     
     # # ### processing ranked queries
     # ranked_queries = read_ranked_queries("queries.ranked.txt")

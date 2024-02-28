@@ -1,13 +1,13 @@
 import orjson
 import redis
 import os
-import sys
 import asyncio
 import aioredis
 import time
 from tqdm import tqdm
-from basetype import InvertedIndex
+from basetype import InvertedIndex, RedisKeys
 from typing import List
+from typing import Dict
 
 BASEPATH = os.path.dirname(__file__)
 
@@ -34,29 +34,6 @@ def get_redis_config(env="prod", is_async=True):
         config_redis = {'address': (REDIS_HOST, REDIS_PORT), "password": REDIS_PASSWORD}
     else:
         config_redis = {"host": REDIS_HOST, "port": REDIS_PORT, "password": REDIS_PASSWORD}
-
-    return config_redis
-
-
-def get_secret_value(project_id="652914548272", secret_id="redis", key="redis-test"):
-    """To get the keys from Google Secret Manager.
-    Note: Ask on discord to get the values.
-    deprecated soon.
-    """
-    from google.cloud import secretmanager
-
-    # Create the Secret Manager client.
-    client = secretmanager.SecretManagerServiceClient()
-
-    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-
-    # Access the secret version.
-    response = client.access_secret_version(request={"name": name})
-
-    payload = response.payload.data.decode("UTF-8")
-    configs = eval(payload)
-
-    config_redis = configs[key]
 
     return config_redis
 
@@ -114,10 +91,15 @@ def update_doc_size(new_size, colname="meta:document_size"):
     redis_connection.set(colname, doc_size)
     return True
 
-@check_redis_connection
-def get_doc_size(colname="meta:document_size"):
-    doc_size = redis_connection.get(colname)
+@check_async_redis_connection
+async def get_doc_size() -> int:
+    doc_size = await redis_async_connection.get(RedisKeys.document_size)
     return int(doc_size)
+
+@check_async_redis_connection
+async def get_doc_ids_list() -> List[int]:
+    doc_ids_list = await redis_async_connection.get(RedisKeys.doc_ids_list)
+    return orjson.loads(doc_ids_list)
 
 @check_redis_connection
 def get_val(key):
@@ -127,6 +109,8 @@ def get_val(key):
     value = eval(value)
     print(f"Time taken to get {key}: {time.time() - start_time}")
     return value
+
+
 
 @check_async_redis_connection
 async def set_data(key, value):
@@ -177,12 +161,31 @@ async def update_index_term(term, inverted_index: InvertedIndex):
         db_value[doc_id] = pos
     
     await redis_async_connection.set(f"w:{term}", orjson.dumps(db_value))
+    
+@check_async_redis_connection
+async def get_value(key: str) -> Dict:
+    value = await redis_async_connection.get(key)
+    return orjson.loads(value)
+
+@check_async_redis_connection
+async def get_values(keys: List[str]) -> List[Dict]:
+    values_list = await redis_async_connection.mget(*keys)
+    values_list = [orjson.loads(value) for value in values_list]
+    return values_list
 
 @check_redis_connection
 def clear_redis():
     redis_connection.flushall()
     return True
 
+@check_async_redis_connection
+async def is_key_exists(key):
+    return await redis_async_connection.exists(key)
+
+async def test():
+    # print(await get_values([RedisKeys.index('man'), RedisKeys.index("woman")]))
+    print(await is_key_exists(RedisKeys.index('[]]')))
+
 if __name__ == "__main__":
-    print(clear_redis())
-    # asyncio.run(set_doc_size(0))
+    # clear_redis()
+    asyncio.run(test())
