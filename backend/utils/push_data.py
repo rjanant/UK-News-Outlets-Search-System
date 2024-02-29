@@ -41,12 +41,13 @@ async def do_push_data(
         indices[i : i + interval] for i in range(0, len(indices), interval)
     ]
 
-    for indices_batch in indices_batches:
+    for idx, indices_batch in enumerate(indices_batches):
         news_batch = load_batch_from_news_source(
             source, date, indices_batch[0], indices_batch[-1]
         )
         await batch_push_news_data(news_batch)
+        # print(f"\IDX: {idx}", end="", flush=True)
 
 
 if __name__ == "__main__":
-    asyncio.run(do_push_data(Source.BBC, date(2024, 2, 16)))
+    asyncio.run(do_push_data(Source.BBC, date(2024, 2, 17)))
