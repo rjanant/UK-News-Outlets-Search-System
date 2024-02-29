@@ -19,6 +19,8 @@ conda activate ttds-proj
 # Install requirements:
 pip install -r requirements.txt
 
+Microsoft Visual C++ 14.0 and Windows SDK (10.0.22621) (or similar, to contain the math.h header).
+
 # docker build:
 docker build -t fastapi:latest .
 
@@ -55,6 +57,7 @@ create commit to branch "deploy"
         - push_index.py (utils for pushing inverted index to db)
         - query_engine.py (query engine(boolean, tf-idf, etc))
         - redis_utils.py (redis utils)
+        - sentiment_analyzer.py (sentiment analysis utils)
         - spell_checker.py (spell checker and auto correct)
         - ttds_2023_english_stop_words.txt (stop words)
     - \_\_init\_\_.py
