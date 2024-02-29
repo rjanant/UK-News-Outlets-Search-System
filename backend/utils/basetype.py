@@ -96,6 +96,15 @@ class RedisKeys:
     cache = lambda method, query: f"{method}:{query}"
     """cache key for a query and method"""
 
+class RedisDocKeys:
+    """Class to represent the keys used in document"""
+    url = "url"
+    title = "title"
+    date = "date"
+    sentiment = "sentiment"
+    summary = "summary"
+    source = "source"
+
 if __name__ == "__main__":
     json_string = """
     {
