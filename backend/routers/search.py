@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import ORJSONResponse
 from os.path import basename
+from os import getenv
 from typing import Optional, Annotated
 from pydantic import BaseModel, Field
 from utils.basetype import Result
-from os import getenv
 from utils.query_engine import boolean_test, ranked_test
+from utils.redis_utils import get_document_infos, caching_query_result, is_key_exists, get_json_value
+from utils.basetype import RedisKeys
+from math import ceil
 
 router = APIRouter(
     prefix=f"/{basename(__file__).replace('.py', '')}",
@@ -56,10 +59,27 @@ async def boolean_search(
         - limit: results per page (default: 10)
     ```
     '''
+    # uncomment this when the caching is ready
+    # if await is_key_exists(RedisKeys.cache("boolean", q)):
+    #     return await get_json_value(RedisKeys.cache("boolean", q))
+    
     results = await boolean_test([q])
     if not results or len(results) > page*limit:
         return []
-    return results[(page-1)*limit:page*limit]
+    
+    # uncomment this if the document info is ready
+    # for idx, doc_id_list in enumerate(results):
+    #     results[idx] = await get_document_infos(doc_id_list)
+
+    response = {
+        "results": results[0][(page-1)*limit:page*limit],
+        "total_pages": ceil(len(results[0])/limit)
+    }
+    
+    # uncomment this when the caching is ready
+    # await caching_query_result("boolean", q, response)
+    
+    return response
 
 @router.get("/tfidf")
 async def tfidf_search(
@@ -74,7 +94,27 @@ async def tfidf_search(
         - limit: results per page
     ```
     '''
+    # uncomment this when the caching is ready
+    # if await is_key_exists(RedisKeys.cache("tfidf", q)):
+    #     return await get_json_value(RedisKeys.cache("tfidf", q))
+    
     results = await ranked_test([q])
+    
+    # uncomment this if the document info is ready
+    # for idx, result in enumerate(results):
+    #     doc_id_list = [t[0] for t in result]
+    #     doc_info_list = await get_document_infos(doc_id_list)
+    #     results[idx] = [(doc_info_list[i], t[1]) for i, t in enumerate(result)]
+        
     if not results or len(results) > page*limit:
         return []
-    return results[(page-1)*limit:page*limit]
+
+    response = {
+        "results": results[0][(page-1)*limit:page*limit],
+        "total_pages": ceil(len(results[0])/limit)
+    }
+    
+    # uncomment this when the caching is ready
+    # await caching_query_result("tfidf", q, response)
+    
+    return response

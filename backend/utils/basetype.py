@@ -80,11 +80,21 @@ class InvertedIndex(BaseModel):
     """Metadata of the index"""
     index: DefaultDict[str, Annotated[DefaultDict[str, List[int]], Field(default_factory=default_dict_list)]]
     """Inverted index key: term, value: dictionary of doc_id and list of positions"""
+
 class RedisKeys:
+    """Class to represent the keys used in the redis"""
     document_size = "meta:document_size"
+    """document size (int)"""
     doc_ids_list = "meta:doc_ids_list"
+    """list of document IDs (list[int])"""
     index = lambda term: f"w:{term}"
-        
+    """index for a term Dict[doc_id, List[int]]"""
+    idf = lambda term: f"idf:{term}"
+    """idf value for a term (float)"""
+    document = lambda doc_id: f"doc:{doc_id}"
+    """document record for a doc_id (Dict[source, title, url, date, summary, sentiment])"""
+    cache = lambda method, query: f"{method}:{query}"
+    """cache key for a query and method"""
 
 if __name__ == "__main__":
     json_string = """
