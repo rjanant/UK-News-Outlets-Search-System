@@ -241,15 +241,18 @@ def build_child_index(
     # file name format: {source_name}_{YYYY-MM-DD}_{start_number}_{end_number}.json
     time_str = date.strftime("%Y-%m-%d")
     pattern = re.compile(f"{source.value}_{time_str}_([0-9]+)_([0-9]+).json")
-    child_index_file_list = [file for file in os.listdir(CHILD_INDEX_PATH) if pattern.match(file)]
     last_index = -1
-    for file in child_index_file_list:
-        # split by .csv
-        file_name = file.split(".")[0]
-        # split by _
-        file_info = file_name.split("_")
-        if int(file_info[-1]) > last_index:
-            last_index = int(file_info[-1])
+    
+    if os.path.exists(CHILD_INDEX_PATH):
+        child_index_file_list = [file for file in os.listdir(CHILD_INDEX_PATH) if pattern.match(file)]
+        
+        for file in child_index_file_list:
+            # split by .csv
+            file_name = file.split(".")[0]
+            # split by _
+            file_info = file_name.split("_")
+            if int(file_info[-1]) > last_index:
+                last_index = int(file_info[-1])
     
     indices = get_indices_for_news_data(source.value, date)
     
