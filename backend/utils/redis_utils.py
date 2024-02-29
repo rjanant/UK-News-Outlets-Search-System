@@ -11,7 +11,13 @@ from typing import Dict
 
 BASEPATH = os.path.dirname(__file__)
 
-redis_async_connection = None
+# redis_async_connection = None
+redis_async_connection = {
+    0: None,
+    1: None
+}
+
+
 redis_connection = None 
 redis_config = None
 
@@ -54,15 +60,15 @@ def initialize_sync_redis():
 async def initialize_async_redis(db=0):
     global redis_async_connection
     try:
-        if not redis_async_connection:
+        if not redis_async_connection[db]:
             config_redis = get_redis_config(db=db)
-            redis_async_connection = await aioredis.create_redis_pool(**config_redis)
+            redis_async_connection[db] = await aioredis.create_redis_pool(**config_redis)
         else:
-            await redis_async_connection.ping()
+            await redis_async_connection[db].ping()
     except (aioredis.ConnectionClosedError, aioredis.RedisError, aioredis.ConnectionForcedCloseError, Exception):
         print("Catched exception: ", Exception)
         config_redis = get_redis_config(db=db)
-        redis_async_connection = await aioredis.create_redis_pool(**config_redis)
+        redis_async_connection[db] = await aioredis.create_redis_pool(**config_redis)
 
 # decorator to check if the redis connection is initialized
 def check_redis_connection(func):
@@ -95,12 +101,12 @@ def update_doc_size(new_size, colname="meta:document_size"):
 
 @do_check_async_redis_connection(db=0)
 async def get_doc_size() -> int:
-    doc_size = await redis_async_connection.get(RedisKeys.document_size)
+    doc_size = await redis_async_connection[0].get(RedisKeys.document_size)
     return int(doc_size)
 
 @do_check_async_redis_connection(db=1)
 async def get_doc_key(doc_id, key):
-    result = await redis_async_connection.hget(
+    result = await redis_async_connection[1].hget(
         RedisKeys.document(doc_id),
         key
     )
@@ -108,19 +114,19 @@ async def get_doc_key(doc_id, key):
 
 @do_check_async_redis_connection(db=1)
 async def get_doc_data(doc_id):
-    result = await redis_async_connection.hgetall(
+    result = await redis_async_connection[1].hgetall(
         RedisKeys.document(doc_id)
     )
     return {key.decode('utf-8'): value.decode('utf-8') for key, value in result.items()}
 
 @do_check_async_redis_connection(db=0)
 async def get_doc_info() -> int:
-    doc_size = await redis_async_connection.get(RedisKeys.document_size)
+    doc_size = await redis_async_connection[0].get(RedisKeys.document_size)
     return int(doc_size)
 
 @do_check_async_redis_connection(db=0)
 async def get_doc_ids_list() -> List[int]:
-    doc_ids_list = await redis_async_connection.get(RedisKeys.doc_ids_list)
+    doc_ids_list = await redis_async_connection[0].get(RedisKeys.doc_ids_list)
     return orjson.loads(doc_ids_list)
 
 @check_redis_connection
@@ -136,7 +142,7 @@ def get_val(key):
 
 @do_check_async_redis_connection(db=0)
 async def set_data(key, value):
-    await redis_async_connection.set(key, value)
+    await redis_async_connection[0].set(key, value)
 
 @do_check_async_redis_connection(db=0)
 async def batch_push(batches):
@@ -167,7 +173,7 @@ async def set_news_data(article: NewsArticleData):
         redis.call('hset', ARGV[1], '{RedisDocKeys.source}', ARGV[7])
     """
     # Run the Lua script
-    await redis_async_connection.eval(
+    await redis_async_connection[0].eval(
         lua_script, 
         keys=[], 
         args=[
@@ -200,8 +206,8 @@ async def update_index(inverted_index: InvertedIndex):
         tasks.append(update_index_term(term, inverted_index))
     await asyncio.gather(*tasks)
     
-    doc_size = await redis_async_connection.get("meta:document_size")
-    doc_ids_list = await redis_async_connection.get("meta:doc_ids_list")
+    doc_size = await redis_async_connection[0].get("meta:document_size")
+    doc_ids_list = await redis_async_connection[0].get("meta:doc_ids_list")
     if not doc_size:
         doc_size = inverted_index.meta.document_size
     else:
@@ -220,7 +226,7 @@ async def update_index(inverted_index: InvertedIndex):
     })
             
 async def update_index_term(term, inverted_index: InvertedIndex):
-    db_value = await redis_async_connection.get(term)
+    db_value = await redis_async_connection[0].get(term)
     if not db_value:
         db_value = {}
     else:
@@ -229,22 +235,22 @@ async def update_index_term(term, inverted_index: InvertedIndex):
     for doc_id, pos in inverted_index.index[term].items():
         db_value[doc_id] = pos
     
-    await redis_async_connection.set(f"w:{term}", orjson.dumps(db_value))
+    await redis_async_connection[0].set(f"w:{term}", orjson.dumps(db_value))
     
 @do_check_async_redis_connection(db=0)
 async def get_json_value(key: str) -> Dict:
-    value = await redis_async_connection.get(key)
+    value = await redis_async_connection[0].get(key)
     return orjson.loads(value)
 
 @do_check_async_redis_connection(db=0)
 async def get_json_values(keys: List[str]) -> List[Dict]:
-    values_list = await redis_async_connection.mget(*keys)
+    values_list = await redis_async_connection[0].mget(*keys)
     values_list = [orjson.loads(value) for value in values_list]
     return values_list
 
 @do_check_async_redis_connection(db=0)
 async def get_idf_value(key: str) -> float:
-    value = await redis_async_connection.get(key)
+    value = await redis_async_connection[0].get(key)
     return float(value)
 
 @do_check_async_redis_connection(db=0)
@@ -259,7 +265,7 @@ def clear_redis():
 
 @do_check_async_redis_connection(db=0)
 async def is_key_exists(key):
-    return await redis_async_connection.exists(key)
+    return await redis_async_connection[0].exists(key)
 
 @do_check_async_redis_connection(db=0)
 async def caching_query_result(method: str, query: str, result):
