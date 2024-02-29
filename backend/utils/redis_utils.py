@@ -5,7 +5,7 @@ import asyncio
 import aioredis
 import time
 from tqdm import tqdm
-from basetype import InvertedIndex, RedisKeys
+from basetype import InvertedIndex, RedisKeys, NewsArticleData
 from typing import List
 from typing import Dict
 
@@ -125,6 +125,50 @@ async def batch_push(batches):
         # Perform SET operations in parallel
         tasks = [set_data(key, value) for key, value in batch.items()]
         await asyncio.gather(*tasks)
+
+@do_check_async_redis_connection(db=1)
+async def set_news_data(article: NewsArticleData):
+    # Get metadata
+    doc_title = article.title
+    doc_url = article.url
+    doc_id = article.doc_id
+    doc_date = article.date
+    doc_sentiment = 'positive'
+    doc_summary = ".".join(article.content.split('.')[:3])
+
+    # Set the values
+    lua_script = """
+        redis.call('hset', ARGV[1], 'url', ARGV[2])
+        redis.call('hset', ARGV[1], 'title', ARGV[3])
+        redis.call('hset', ARGV[1], 'date', ARGV[4])
+        redis.call('hset', ARGV[1], 'sentiment', ARGV[5])
+        redis.call('hset', ARGV[1], 'summary', ARGV[6])
+    """
+    # Run the Lua script
+    await redis_async_connection.eval(
+        lua_script, 
+        keys=[], 
+        args=[
+            doc_id, #1 
+            doc_url, #2
+            doc_title, #3
+            doc_date, #4
+            doc_sentiment, #5
+            doc_summary #6
+            ]
+        )
+
+@do_check_async_redis_connection(db=1)
+async def batch_push_news_data(news_batch):
+    # Define keys and values to set
+    tasks = []
+    for _source in news_batch.fragments:
+        if type(_source) != str:
+            continue
+        for fragment in news_batch.fragments[_source]:
+            for article in fragment.articles:
+                tasks.append(set_news_data(article))
+    await asyncio.gather(*tasks)
 
 @do_check_async_redis_connection(db=0)
 async def update_index(inverted_index: InvertedIndex):
