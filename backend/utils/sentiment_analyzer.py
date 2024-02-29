@@ -1,11 +1,14 @@
 ### TO DO - MOVE THE MODEL, TOKENIZER, AND DEVICE DETERMINATION
 # TO THE INITIALIZATION OF THE MODULE
 
+import os
+import warnings
 import pandas as pd
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import orjson
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODEL_NAME = "mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis"
@@ -38,13 +41,10 @@ def analyze_sentiment(text, model=MODEL, tokenizer=TOKENIZER, device=DEVICE):
             .float()
             .numpy()
         )
-        # Round the first 2 elements
-        rounded_sentiments = np.round(sentiments[:-1], decimals=2)
-        # Ensure the sum equals 1 by adjusting the last element
-        last_element = 1 - np.sum(rounded_sentiments)
-        rounded_sentiments = list(rounded_sentiments) + [
-            np.round(last_element, decimals=2)
-        ]
+        # Round the first 2 elements and convert them to Python floats
+        rounded_sentiments = [float(np.round(sentiment, 2)) for sentiment in sentiments]
+        diff = 1.0 - sum(rounded_sentiments)
+        rounded_sentiments[-1] = float(np.round(rounded_sentiments[-1] + diff, 2))
         return rounded_sentiments
     except Exception as e:
         return None
@@ -71,9 +71,48 @@ def get_sentiment_dictionary_from_csv_path(
     if csv_sentiment_dictionary is None:
         csv_sentiment_dictionary = {}
 
-    for index, text in tqdm(enumerate(content_series), total=len(content_series)):
+    for index, text in enumerate(content_series):
         sentiment_list = analyze_sentiment(text, model, tokenizer, device)
         doc_id = doc_id_series[index]
-        csv_sentiment_dictionary[doc_id] = sentiment_list
+
+        if str(doc_id) in csv_sentiment_dictionary.keys():
+            warnings.warn(
+                f"Duplicate doc_id found: {doc_id}. Overwriting the previous entry!"
+            )
+
+        csv_sentiment_dictionary[str(doc_id)] = sentiment_list
 
     return csv_sentiment_dictionary
+
+
+if __name__ == "__main__":
+    data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data/"
+    outlet_folders = ["bbc", "gbn", "ind", "tele"]
+    output_file_path = "sentiment_dictionary/sentiment_dictionary.json"
+    sentiment_dictionary = {}
+
+    # Iterate over each outlet folder
+    for outlet_folder in outlet_folders:
+        # Construct the path to the current outlet folder
+        folder_path = os.path.join(data_path, outlet_folder)
+        # List all files in the current outlet folder
+        all_file_paths = os.listdir(folder_path)
+
+        # Iterate over each file in the current outlet folder
+        for file_name in tqdm(all_file_paths, desc=outlet_folder):
+            # Construct the full path to the current file
+            file_path = os.path.join(folder_path, file_name)
+            # Ensure the file is a CSV before attempting to read it
+            if file_path.endswith(".csv"):
+                try:
+                    # Read the current CSV file into a pandas DataFrame
+                    sentiment_dictionary = get_sentiment_dictionary_from_csv_path(
+                        file_path, csv_sentiment_dictionary=sentiment_dictionary
+                    )
+                except Exception as e:
+                    print(f"Error with {file_path}: {e}")
+
+    with open(
+        output_file_path, "wb"
+    ) as file:  # 'wb' mode because orjson.dumps() returns bytes
+        file.write(orjson.dumps(sentiment_dictionary))
