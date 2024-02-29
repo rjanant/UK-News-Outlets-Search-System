@@ -98,6 +98,21 @@ async def get_doc_size() -> int:
     doc_size = await redis_async_connection.get(RedisKeys.document_size)
     return int(doc_size)
 
+@do_check_async_redis_connection(db=1)
+async def get_doc_key(doc_id, key):
+    result = await redis_async_connection.hget(
+        RedisKeys.document(doc_id),
+        key
+    )
+    return result.decode()
+
+@do_check_async_redis_connection(db=1)
+async def get_doc_data(doc_id):
+    result = await redis_async_connection.hgetall(
+        RedisKeys.document(doc_id)
+    )
+    return {key.decode('utf-8'): value.decode('utf-8') for key, value in result.items()}
+
 @do_check_async_redis_connection(db=0)
 async def get_doc_info() -> int:
     doc_size = await redis_async_connection.get(RedisKeys.document_size)
@@ -144,12 +159,12 @@ async def set_news_data(article: NewsArticleData):
 
     # Set the values
     lua_script = f"""
-        redis.call('hset', ARGV[1], {RedisDocKeys.url}, ARGV[2])
-        redis.call('hset', ARGV[1], {RedisDocKeys.title}, ARGV[3])
-        redis.call('hset', ARGV[1], {RedisDocKeys.date}, ARGV[4])
-        redis.call('hset', ARGV[1], {RedisDocKeys.sentiment}, ARGV[5])
-        redis.call('hset', ARGV[1], {RedisDocKeys.summary}, ARGV[6])
-        redis.call('hset', ARGV[1], {RedisDocKeys.source}, ARGV[7])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.url}', ARGV[2])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.title}', ARGV[3])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.date}', ARGV[4])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.sentiment}', ARGV[5])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.summary}', ARGV[6])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.source}', ARGV[7])
     """
     # Run the Lua script
     await redis_async_connection.eval(
