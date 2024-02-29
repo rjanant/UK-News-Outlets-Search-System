@@ -7,10 +7,10 @@ import asyncio
 import sys
 sys.path.append(os.path.dirname(__file__))
 from nltk.stem import PorterStemmer
-from typing import DefaultDict, Dict, List
+from typing import DefaultDict, Dict, List, Tuple
 from common import read_file, get_stop_words, get_preprocessed_words
-from redis_utils import get_doc_size, get_doc_ids_list, get_values, is_key_exists, get_value
-from build_index import delta_decode_positions
+from redis_utils import get_doc_size, get_doc_ids_list, get_json_values, is_key_exists, get_json_value
+from build_index import delta_decode_list
 from basetype import RedisKeys
 
 STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
@@ -68,7 +68,7 @@ def handle_not_operator(operand: list, doc_ids_list: list) -> list:
 async def get_doc_ids_from_string(string: str) -> List[int]:
     # check if string is a phrase bounded by double quotes 
     if await is_key_exists(RedisKeys.index(string)):
-        term_index = await get_value(RedisKeys.index(string))
+        term_index = await get_json_value(RedisKeys.index(string))
         return list(term_index.keys())
     else:
         return []
@@ -79,9 +79,9 @@ async def get_doc_ids_from_pattern(pattern: str) -> List[int]:
     doc_ids = []
     words = re.findall(r"\w+", pattern)
     # check if the word are in consecutive positions
-    words_index = await get_values([RedisKeys.index(word) for word in words])
+    words_index = await get_json_values([RedisKeys.index(word) for word in words])
     for doc_id in words_index[0]:
-        positions = delta_decode_positions(words_index[0][doc_id])
+        positions = delta_decode_list(words_index[0][doc_id])
         for pos in positions:
             try:
                 if all([pos + i in words_index[i][doc_id] for i in range(1, len(words))]) and doc_id not in doc_ids:
@@ -102,9 +102,9 @@ async def evaluate_proximity_pattern(n: int, w1: str, w2: str, doc_ids_list: lis
     doc_ids = []
     for doc_id in doc_ids_for_w1:
         try:
-            values = await get_values([RedisKeys.index(w1), RedisKeys.index(w2)])
-            positions_for_w1 = delta_decode_positions(values[0][doc_id])
-            positions_for_w2 = delta_decode_positions(values[1][doc_id])
+            values = await get_json_values([RedisKeys.index(w1), RedisKeys.index(w2)])
+            positions_for_w1 = delta_decode_list(values[0][doc_id])
+            positions_for_w2 = delta_decode_list(values[1][doc_id])
             if any([abs(pos1 - pos2) <= int(n) for pos1 in positions_for_w1 for pos2 in positions_for_w2]):
                 doc_ids.append(doc_id)
         except:
@@ -157,7 +157,7 @@ async def calculate_tf_idf(tokens: List, doc_id: str, docs_size: int) -> float:
         if not await is_key_exists(RedisKeys.index(token)):
             continue
         
-        token_index = await get_value(RedisKeys.index(token))
+        token_index = await get_json_value(RedisKeys.index(token))
         if doc_id not in token_index:
             continue
         
@@ -289,11 +289,10 @@ async def evaluate_boolean_query(query: str,
         traceback.print_exc()
         exit()
         
-async def evaluate_ranked_query(query: str, docs_size:int, max_result: int = 10, stopping: bool = True, stemming:bool = True) -> list:
-
+async def evaluate_ranked_query(query: str, docs_size:int, stopping: bool = True, stemming:bool = True) -> List[Tuple[int, float]]:
     words = get_preprocessed_words(query, stopping, stemming)
     doc_ids = set()
-    doc_ids_tasks = [get_value(RedisKeys.index(word)) for word in words if await is_key_exists(RedisKeys.index(word))]
+    doc_ids_tasks = [get_json_value(RedisKeys.index(word)) for word in words if await is_key_exists(RedisKeys.index(word))]
     doc_ids_results = await asyncio.gather(*doc_ids_tasks)
     for result in doc_ids_results:
         doc_ids = doc_ids.union(result.keys())
@@ -308,24 +307,24 @@ async def evaluate_ranked_query(query: str, docs_size:int, max_result: int = 10,
     # sort by the score and the doc_id
     scores.sort(key=lambda x: (-x[1], x[0]))
 
-    return scores[:max_result]
+    return scores
 
-async def boolean_test(boolean_queries: List[str] = ["\"Comic Relief\" AND (NOT wtf OR #1(Comic, Relief))"]) -> List[List[str]]:
+async def boolean_test(boolean_queries: List[str] = ["\"Comic Relief\" AND (NOT wtf OR #1(Comic, Relief))"]) -> List[List[int]]:
     doc_ids_list = await get_doc_ids_list()
     start_time = time.time()
     results = []
     for query in boolean_queries:
         results.append(await evaluate_boolean_query(query, doc_ids_list))
-    print("Time taken to process boolean queries", time.time() - start_time)
+    print("Time taken to process boolean queries", time.time() - start_time, len(results))
     return results
 
-async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List[str]]:
+async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List[Tuple[int, float]]]:
     doc_size = await get_doc_size()
     start_time = time.time()
     results = []
     for query in ranked_queries:
         results.append(await evaluate_ranked_query(query, doc_size))
-    print("Time taken to process ranked queries", time.time() - start_time)
+    print("Time taken to process ranked queries", time.time() - start_time, len(results[0]))
     return results
     
 async def main():

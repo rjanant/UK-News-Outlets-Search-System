@@ -38,3 +38,10 @@ def norvig_correction(word):
         return known([word]) or known(edits1(word)) or known(edits2(word)) or [word]
 
     return max(candidates(word), key=P)
+
+def correct_spelling(query: str):
+    return " ".join(norvig_correction(word) for word in query.split())
+
+if __name__ == "__main__":
+    query = "I wano to go to the schol"
+    print(correct_spelling(query))
