@@ -36,3 +36,24 @@
     transform: rotate(360deg);
   }
 }
+
+.topic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+
+/* To ensure the form fields are centralized */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto; /* Auto margins for horizontal centering */
+  max-width: 500px; /* Adjust width as needed */
+}
+
+/* Styling for the submit button */
+.submit-button {
+  margin-top: 20px; /* Space above the submit button */
+}
