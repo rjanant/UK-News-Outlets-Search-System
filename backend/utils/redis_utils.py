@@ -149,7 +149,7 @@ async def set_news_data(article: NewsArticleData):
         redis.call('hset', ARGV[1], {RedisDocKeys.date}, ARGV[4])
         redis.call('hset', ARGV[1], {RedisDocKeys.sentiment}, ARGV[5])
         redis.call('hset', ARGV[1], {RedisDocKeys.summary}, ARGV[6])
-        redis.call('hset', ARGV[1], {RedisDocKeys.summary}, ARGV[7])
+        redis.call('hset', ARGV[1], {RedisDocKeys.source}, ARGV[7])
     """
     # Run the Lua script
     await redis_async_connection.eval(
