@@ -44,3 +44,26 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+
+
+# TTDS-CW3
+1. cd folder → npm start (if os error - unset HOST)
+2. npm install axios → to connect react application to fast api
+
+--> To start a virtual env:
+
+`python -m venv venv`
+
+`source myvenv/bin/activate`
+
+--> React:
+https://nodejs.org/en/download/
+
+--> Bootstrap:
+
+
+1. npm install bootstrap
+2. npm install react-icons
+3. npm install @babel/plugin-proposal-private-property-in-object --save-dev
+
