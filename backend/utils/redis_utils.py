@@ -5,7 +5,7 @@ import asyncio
 import aioredis
 import time
 from tqdm import tqdm
-from basetype import InvertedIndex, RedisKeys, NewsArticleData
+from basetype import InvertedIndex, RedisKeys, RedisDocKeys, NewsArticleData
 from typing import List
 from typing import Dict
 
@@ -99,6 +99,11 @@ async def get_doc_size() -> int:
     return int(doc_size)
 
 @do_check_async_redis_connection(db=0)
+async def get_doc_info() -> int:
+    doc_size = await redis_async_connection.get(RedisKeys.document_size)
+    return int(doc_size)
+
+@do_check_async_redis_connection(db=0)
 async def get_doc_ids_list() -> List[int]:
     doc_ids_list = await redis_async_connection.get(RedisKeys.doc_ids_list)
     return orjson.loads(doc_ids_list)
@@ -131,18 +136,20 @@ async def set_news_data(article: NewsArticleData):
     # Get metadata
     doc_title = article.title
     doc_url = article.url
-    doc_id = article.doc_id
+    doc_id = RedisKeys.document(article.doc_id)
     doc_date = article.date
     doc_sentiment = 'positive'
     doc_summary = ".".join(article.content.split('.')[:3])
+    doc_source = article.url.split('.')[1]
 
     # Set the values
-    lua_script = """
-        redis.call('hset', ARGV[1], 'url', ARGV[2])
-        redis.call('hset', ARGV[1], 'title', ARGV[3])
-        redis.call('hset', ARGV[1], 'date', ARGV[4])
-        redis.call('hset', ARGV[1], 'sentiment', ARGV[5])
-        redis.call('hset', ARGV[1], 'summary', ARGV[6])
+    lua_script = f"""
+        redis.call('hset', ARGV[1], {RedisDocKeys.url}, ARGV[2])
+        redis.call('hset', ARGV[1], {RedisDocKeys.title}, ARGV[3])
+        redis.call('hset', ARGV[1], {RedisDocKeys.date}, ARGV[4])
+        redis.call('hset', ARGV[1], {RedisDocKeys.sentiment}, ARGV[5])
+        redis.call('hset', ARGV[1], {RedisDocKeys.summary}, ARGV[6])
+        redis.call('hset', ARGV[1], {RedisDocKeys.summary}, ARGV[7])
     """
     # Run the Lua script
     await redis_async_connection.eval(
@@ -154,7 +161,8 @@ async def set_news_data(article: NewsArticleData):
             doc_title, #3
             doc_date, #4
             doc_sentiment, #5
-            doc_summary #6
+            doc_summary, #6
+            doc_source
             ]
         )
 
