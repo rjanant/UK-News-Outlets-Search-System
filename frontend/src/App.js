@@ -69,29 +69,6 @@ function App() {
                         <a href="#facebook" className="ms-2">Facebook</a> | 
                         <a href="#instagram" className="ms-2">Instagram</a>
                     </div>
-
-                    {/* Delete this after testing */}
-                    <button
-                    onClick={async () => {
-                        const result = await fetch(
-                        `${process.env.REACT_APP_ENDPOINT_URL}/search/test`,
-                        {
-                            method: "POST",
-                            headers: {
-                            "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                            field: "test",
-                            }),
-                        }
-                        );
-                        const data = await result.json();
-                        console.log(data);
-                    }}
-                    >
-                        Test
-                    </button>
-                    
                 </Container>
             </footer>
         </>
