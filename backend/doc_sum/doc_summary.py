@@ -7,20 +7,31 @@ import nltk
 import re
 import numpy as np
 import networkx as nx
+import os
 from nltk.corpus import stopwords
 
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+# print the current working directory
+print("Current working directory: ", os.getcwd())
 
 #Article is a class in search engine which has two fields title and body.
 
-csv.field_size_limit(sys.maxsize)
+maxInt = sys.maxsize
+while True:
+    try:
+        csv.field_size_limit(maxInt)
+        break
+    except OverflowError:
+        maxInt = int(maxInt/10)
+
+print("Max field size limit: ", maxInt)
 # nltk.download('stopwords')
 stop_words = stopwords.words('english')
 
 #load document paths
 def read_data(path: str = "articles50000.csv") -> List[Article]:
-    
     result = {}
-    with open(path) as csvfile:
+    with open(path, 'r', encoding='utf-8') as csvfile:
         articles = csv.reader(csvfile, delimiter=',')
         next(articles, None)
         for aid, article in enumerate(articles):
@@ -109,8 +120,8 @@ def doc_sum(doc: Article, query: str, sentence_cnt: int = 5):
 
 
 def launch():
-    data_path = 'articles50000.csv'
-    save_dir = '/Users/anantraj/Desktop/TTDS/test'
+    data_path = os.path.join(os.path.dirname(__file__), 'article100.csv')
+    save_dir = os.path.join(os.path.dirname(__file__), 'save/')
     save_paths = {
         'index': f'{save_dir}index.p',
         'lengths': f'{save_dir}doc_lengths.p',

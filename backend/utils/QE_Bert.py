@@ -7,6 +7,8 @@ import nltk
 import pickle
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+import numpy as np
+
 #use defined pre-processing function from other .py files
 #nltk.download('punkt')
 #nltk.download('stopwords')
@@ -14,7 +16,7 @@ from nltk.tokenize import word_tokenize
 # pre-trained BERT model for generating embeddings
 model_name = "bert-base-nli-mean-tokens"
 model = SentenceTransformer(model_name)
-data = pd.read_csv("articles50000.csv")
+data = pd.read_csv(os.path.join(os.path.dirname(__file__), '..', 'doc_sum', 'article100.csv'))
 
 
 preprocessed_data_path = "preprocessed_data.pkl"
@@ -51,7 +53,7 @@ def expand_query(query, num_expansions=10):
     preprocessed_query = preprocess(query)
     
     # Query embedding
-    query_embedding = model.encode(preprocessed_query).reshape(1, -1)  # Reshape to make it 2D
+    query_embedding = np.array(model.encode(preprocessed_query)).reshape(1, -1)  # Convert to numpy array and reshape to make it 2D
     
     # cosine similarity b/w  query embedding and article embeddings
     similarities = cosine_similarity(query_embedding, article_embeddings)
