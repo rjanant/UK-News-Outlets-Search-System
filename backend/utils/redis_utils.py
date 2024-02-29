@@ -163,15 +163,25 @@ async def update_index_term(term, inverted_index: InvertedIndex):
     await redis_async_connection.set(f"w:{term}", orjson.dumps(db_value))
     
 @check_async_redis_connection
-async def get_value(key: str) -> Dict:
+async def get_json_value(key: str) -> Dict:
     value = await redis_async_connection.get(key)
     return orjson.loads(value)
 
 @check_async_redis_connection
-async def get_values(keys: List[str]) -> List[Dict]:
+async def get_json_values(keys: List[str]) -> List[Dict]:
     values_list = await redis_async_connection.mget(*keys)
     values_list = [orjson.loads(value) for value in values_list]
     return values_list
+
+@check_async_redis_connection
+async def get_idf_value(key: str) -> float:
+    value = await redis_async_connection.get(key)
+    return float(value)
+
+@check_async_redis_connection
+async def get_document_infos(doc_ids: List[int]) -> List[Dict]:
+    keys = [RedisKeys.document(doc_id) for doc_id in doc_ids]
+    return await get_json_values(keys)
 
 @check_redis_connection
 def clear_redis():
@@ -181,6 +191,12 @@ def clear_redis():
 @check_async_redis_connection
 async def is_key_exists(key):
     return await redis_async_connection.exists(key)
+
+@check_async_redis_connection
+async def caching_query_result(method: str, query: str, result):
+    key = f"{method}:{query}"
+    # non-blocking set operation
+    asyncio.create_task(set_data(key, orjson.dumps(result)))
 
 async def test():
     # print(await get_values([RedisKeys.index('man'), RedisKeys.index("woman")]))
