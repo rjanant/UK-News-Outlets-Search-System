@@ -6,10 +6,14 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
-def analyze_sentiment_from_csv_path(
+def get_sentiment_dictionary_from_csv_path(
     csv_path, device, model, tokenizer, csv_sentiment_dictionary=None
 ):
-    """[negative, neutral, positive]"""
+    """
+    Returns {doc_id: [prob_negative, prob_neutral, prob_positive]}.
+
+    If csv_sentiment_dictionary is None, a new dictionary will be created.
+    """
     csv_dataframe = pd.read_csv(csv_path)
     content_series = csv_dataframe["content"]
     doc_id_series = csv_dataframe["doc_id"]
@@ -44,3 +48,5 @@ def analyze_sentiment_from_csv_path(
         except:
             print(f"Error at index {index}, recording None.")
             csv_sentiment_dictionary[doc_id_series[index]] = None
+
+    return csv_sentiment_dictionary
