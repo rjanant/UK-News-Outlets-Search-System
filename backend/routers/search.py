@@ -60,6 +60,8 @@ async def boolean_search(
     ```
     '''
     def pagination(results):
+        """Function to get a particular page
+        """
         response = {
             "results": results[0][(page-1)*limit:page*limit],
             "total_pages": ceil(len(results[0])/limit)
@@ -106,6 +108,8 @@ async def tfidf_search(
     '''
 
     def pagination(results):
+        """Function to get a particular page
+        """
         response = {
             "results": results[0][(page-1)*limit:page*limit],
             "total_pages": ceil(len(results[0])/limit)
