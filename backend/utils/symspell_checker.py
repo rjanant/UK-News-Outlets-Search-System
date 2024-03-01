@@ -1,3 +1,4 @@
+from typing import List
 from symspellpy import SymSpell, Verbosity
 import os
 import pandas as pd
@@ -5,15 +6,19 @@ from tqdm import tqdm
 
 
 class SpellChecker:
-    def __init__(self, dictionary_path="spell_checking_files/symspell_dictionary.pkl"):
+    def __init__(
+        self, dictionary_path: str = "spell_checking_files/symspell_dictionary.pkl"
+    ) -> None:
 
         self.sym_spell = SymSpell()
         if dictionary_path:
             self.sym_spell.load_pickle(dictionary_path)
 
-    def create_spell_checking_txt(self, data_path, outlet_folders, output_corpus_path):
+    def create_spell_checking_txt(
+        self, data_path: str, outlet_folders: List[str], output_corpus_path: str
+    ) -> None:
         """
-        From txts with "content" and "doc_id" columns, create a txt file with all the content from the articles.
+        From txts with "content" and "doc_id" columns, create a txt file with all the content from all articles.
 
         data_path: str
             The path to the directory containing the outlet folders.
@@ -49,8 +54,8 @@ class SpellChecker:
                             pass
 
     def create_and_save_spellcheck_dictionary(
-        self, corpus_txt_path, output_dictionary_path
-    ):
+        self, corpus_txt_path: str, output_dictionary_path: str
+    ) -> None:
         """
         Create and save a SymSpell dictionary from a corpus.
 
@@ -65,11 +70,13 @@ class SpellChecker:
         self.sym_spell.create_dictionary(corpus)
         self.sym_spell.save_pickle(output_dictionary_path)
 
-    def load_dictionary(self, dictionary_path):
+    def load_dictionary(self, dictionary_path: str) -> None:
         """Load the SymSpell dictionary from a pickle file."""
         self.sym_spell.load_pickle(dictionary_path)
 
-    def correct_query(self, text, max_edit_distance=2, ignore_non_words=True):
+    def correct_query(
+        self, text: str, max_edit_distance: int = 2, ignore_non_words: bool = True
+    ) -> str:
         """
         Correct a query using the loaded SymSpell dictionary.
 
@@ -79,14 +86,12 @@ class SpellChecker:
             The maximum edit distance to look for corrections.
         ignore_non_words: bool
             Whether to ignore non-words when correcting the query.
-        
+
         """
         suggestions = self.sym_spell.lookup_compound(
             text, max_edit_distance=max_edit_distance, ignore_non_words=ignore_non_words
         )
         return suggestions[0].term if suggestions else text
-
-
 
 
 # if __name__ == "__main__":
