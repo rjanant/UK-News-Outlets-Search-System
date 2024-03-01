@@ -149,20 +149,26 @@ def read_ranked_queries(file_name: str) -> list:
         
     return queries
 
-async def calculate_tf_idf(tokens: List, doc_id: str, docs_size: int) -> float:
+async def calculate_tf_idf(tokens: List,
+                           doc_id: str,
+                           docs_size: int,
+                           word_freq: dict,
+                           doc_freq: dict
+                        ) -> float:
     tf_idf_score = 0
     for token in tokens:
+        keyword = f"{token}:{doc_id}"
         # if token not in inverted_index or doc_id not in inverted_index[token]:
         #     continue
         if not await is_key_exists(RedisKeys.index(token)):
             continue
         
-        token_index = await get_json_value(RedisKeys.index(token))
-        if doc_id not in token_index:
+        # token_index = await get_json_value(RedisKeys.index(token)) # Deprecated
+        if keyword not in word_freq:
             continue
         
-        tf = 1 + math.log10(len(token_index[doc_id]))
-        idf = math.log10(docs_size / len(token_index))
+        tf = 1 + math.log10(word_freq[keyword])
+        idf = math.log10(docs_size / doc_freq[token])
         tf_idf_score += tf * idf
     return tf_idf_score
 
@@ -291,15 +297,19 @@ async def evaluate_boolean_query(query: str,
 async def evaluate_ranked_query(query: str, docs_size:int, stopping: bool = True, stemming:bool = True) -> List[Tuple[int, float]]:
     words = get_preprocessed_words(query, stopping, stemming)
     doc_ids = set()
+    word_freq = dict()
+    doc_freq = dict()
     doc_ids_tasks = [get_json_value(RedisKeys.index(word)) for word in words if await is_key_exists(RedisKeys.index(word))]
     doc_ids_results = await asyncio.gather(*doc_ids_tasks)
-    for result in doc_ids_results:
+    for word, result in zip(words, doc_ids_results):
         doc_ids = doc_ids.union(result.keys())
+        word_freq.update({f"{word}:{doc}": len(pos) for doc, pos in result.items()})
+        doc_freq[word] = len(result)
     
     doc_ids = list(doc_ids)
     scores = []
     
-    score_tasks = [calculate_tf_idf(words, doc_id, docs_size) for doc_id in doc_ids]
+    score_tasks = [calculate_tf_idf(words, doc_id, docs_size, word_freq, doc_freq) for doc_id in doc_ids]
     score_results = await asyncio.gather(*score_tasks)
     for idx, doc_id in enumerate(doc_ids):
         scores.append((doc_id, score_results[idx]))
@@ -327,7 +337,29 @@ async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List
     return results
     
 async def main():
-    await boolean_test()
+    # await boolean_test()
+    await ranked_test()
+    
+    #### BENCHMARKING
+    # result = await ranked_test()
+    # print(result[0][:5])
+
+    # Inference Time in Query 1
+    # Baseline: Comic Relief: 0.3459899425506592 346
+    # Improvement: Comic Relief: 0.28830504417419434 346
+
+    # Inference Time in Query 2
+    # Baseline: Donald Trump and Biden in 2024 USA: 3.79338002204895 1765
+    # Improvement: Donald Trump and Biden in 2024 USA: 0.5762429237365723 1765
+
+    # Inference Result Query 1    
+    # Baseline: Comic Relief: [('219148', 6.715275777697791), ('220261', 6.715275777697791), ('222097', 6.715275777697791), ('312028', 6.715275777697791), ('313037', 6.5266929715344775)]
+    # Improvement: Comic Relief: [('219148', 6.715275777697791), ('220261', 6.715275777697791), ('222097', 6.715275777697791), ('312028', 6.715275777697791), ('313037', 6.5266929715344775)]
+    
+    # Inference Result Query 2    
+    # Baseline: Donald Trump and Biden in 2024 USA: [('224817', 21.52595725971649), ('220825', 21.123974002575643), ('222614', 20.60367423116946), ('221260', 19.128669330853047), ('222408', 18.69979137178141)]
+    # Improvement: Donald Trump and Biden in 2024 USA: [('224817', 21.52595725971649), ('220825', 21.123974002575643), ('222614', 20.60367423116946), ('221260', 19.128669330853047), ('222408', 18.69979137178141)]
+
 
 if __name__ == "__main__":
     asyncio.run(main())
