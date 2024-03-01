@@ -8,7 +8,7 @@ def norvig_correction(word):
     def words(text):
         return re.findall(r"\w+", text.lower())
 
-    WORDS = Counter(words(open("very_big_string.txt").read()))
+    WORDS = Counter(words(open("C:/Users/Asus/Desktop/ttds-proj/backend/utils/sentiment_dictionary/large_sentiment.txt", encoding="utf-8").read()))
 
     def known(words):
         "The subset of `words` that appear in the dictionary of WORDS."
