@@ -1,27 +1,18 @@
 import React from 'react';
-import {
-  Container, Navbar, Nav, InputGroup,
-  FormControl, Button, Card, Pagination, Badge, Row, Col
-} from 'react-bootstrap';
+import { Container, Navbar, Nav, InputGroup, FormControl, Button, Card, Pagination, Badge, Row, Col } from 'react-bootstrap';
 import { BsSearch } from 'react-icons/bs';
 import { useNavigate, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useLocation } from 'react-router-dom';
 
 function ResultsPage() {
-    let navigate = useNavigate();
+    const routeLocation = useLocation();
+    const searchResults = routeLocation.state.searchResults;
 
+    let navigate = useNavigate();
     const handleSearch = (searchTerm) => {
         navigate(`/ResultsPage?query=${searchTerm}`);
     };
-
-    // Placeholder data
-    const results = [
-        { title: "Result 1", description: "Description of result 1", label: "Label 1" },
-        { title: "Result 2", description: "Description of result 2", label: "Label 2" },
-        { title: "Result 3", description: "Description of result 3", label: "Label 3" }
-    ];
-
-    const similarWords = ["example", "sample", "demo"]; // Placeholder similar words
 
     return (
         <>
@@ -51,26 +42,13 @@ function ResultsPage() {
                     </Button>
                 </InputGroup>
 
-                 {/* Similar Words Placeholder */}
-                 <Row className="mb-4 gx-2">
-                    {similarWords.map((word, index) => (
-                        <Col key={index} xs="auto">
-                            <Button variant="outline-secondary">{word}</Button>
-                        </Col>
-                    ))}
-                </Row>
-
-                {/* Results List */}
-                {results.map((result, index) => (
-                    <Card key={index} className="mb-3">
-                        <Card.Body>
-                            <Card.Title>{result.title}</Card.Title>
-                            <Card.Text>{result.description}</Card.Text>
-                            <Badge bg="secondary">{result.label}</Badge>
-                        </Card.Body>
-                    </Card>
+                {/* Search Results */}
+                <h2>Search Results</h2>
+            <ul>
+                {searchResults.map((result, index) => (
+                    <li key={index}>{result}</li>
                 ))}
-
+            </ul>
 
                 {/* Pagination */}
                 <Container className="d-flex justify-content-center mt-4">

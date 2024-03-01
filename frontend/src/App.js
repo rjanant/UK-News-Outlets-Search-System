@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ResultsPage from './ResultsPage';
 import HowItWorks from './HowItWorks';
 import logoImage from './logo.png'; // Ensure this is the correct path
@@ -6,14 +6,32 @@ import { Container, InputGroup, FormControl, Button, Navbar, Nav } from 'react-b
 import { BsSearch } from 'react-icons/bs';
 import { useNavigate, BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { fetchSearchResults, fetchSearchBoolean } from './api'; // Import API functions
+
 
 function App() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
     let navigate = useNavigate();
 
-    const handleSearchClick = () => {
-        navigate('/ResultsPage');
-    };
+    useEffect(() => {
+        if(searchResults.length > 0){
+            navigate('/ResultsPage', { state: { searchResults } });
+        }
+    }, [searchResults]);
 
+    const handleSearchClick = async () => {
+        if (!searchQuery.trim()) return;
+        try {
+            const data = await fetchSearchResults(searchQuery.trim());
+            setSearchResults(data.results);
+        } catch (error) {
+            console.error('Error fetching search results:', error);
+            // Handle error
+        }
+    };
+  
+    
     return (
         <>
             <Navbar bg="light" expand="lg">
@@ -29,7 +47,6 @@ function App() {
                 </Container>
             </Navbar>
 
-
             <Container className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '80vh', backgroundColor: '#ffffff', paddingTop: '5vh' }}>
                 <div className="text-center" style={{ position: 'relative', top: '-15vh' }}>
                     <img 
@@ -44,6 +61,8 @@ function App() {
                           aria-label="Search"
                           aria-describedby="basic-addon2"
                           style={{ borderRadius: '20px 0 0 20px', height: '50px' }}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
                         />
                         <Button 
                           variant="outline-secondary" 
