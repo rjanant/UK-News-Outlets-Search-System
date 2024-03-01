@@ -3,8 +3,9 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
+
 def create_spell_checking_txt(data_path, outlet_folders, output_corpus_path):
-    """"From txts with "content" and "doc_id" columns, create a txt file with all the content from the articles."""
+    """ "From txts with "content" and "doc_id" columns, create a txt file with all the content from the articles."""
     for outlet_folder in outlet_folders:
         # Construct the path to the current outlet folder
         folder_path = os.path.join(data_path, outlet_folder)
@@ -23,10 +24,13 @@ def create_spell_checking_txt(data_path, outlet_folders, output_corpus_path):
                 for index, article in enumerate(content_series):
                     try:
                         # Open the file in append mode and write the article string
-                        with open(output_corpus_path, 'a', encoding='utf-8') as file:
-                            file.write(article + "\n")  # Add a newline to separate articles
+                        with open(output_corpus_path, "a", encoding="utf-8") as file:
+                            file.write(
+                                article + "\n"
+                            )  # Add a newline to separate articles
                     except Exception as e:
                         pass
+
 
 def create_spell_checker_dictionary(corpus_path, output_dictionary_path):
     """Save a SymSpell dictionary to a pkl."""
@@ -43,6 +47,7 @@ def create_spell_checker_dictionary(corpus_path, output_dictionary_path):
     # Save the dictionary
     sym_spell_instance.save_pickle(output_dictionary_path)
 
+
 def load_sym_spell_instance(dictionary_path):
     # Create a SymSpell instance
     sym_spell_instance = SymSpell()
@@ -52,11 +57,14 @@ def load_sym_spell_instance(dictionary_path):
 
     return sym_spell_instance
 
+
 def correct_query(text, sym_spell_instance):
     # Perform spelling correction on the query
     # max_edit_distance dictates how far the algorithm should look for corrections
     # ignore_non_words=True allows the algorithm to skip words without corrections or those considered as proper nouns
-    suggestions = sym_spell_instance.lookup_compound(text, max_edit_distance=2, ignore_non_words=True)
+    suggestions = sym_spell_instance.lookup_compound(
+        text, max_edit_distance=2, ignore_non_words=True
+    )
 
     # Print out the corrected query
     corrected_query = suggestions[0].term if suggestions else text
