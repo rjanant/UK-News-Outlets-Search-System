@@ -59,9 +59,18 @@ async def boolean_search(
         - limit: results per page (default: 10)
     ```
     '''
+    def pagination(results):
+        response = {
+            "results": results[0][(page-1)*limit:page*limit],
+            "total_pages": ceil(len(results[0])/limit)
+        }
+        return response
+
     # uncomment this when the caching is ready
     if await check_cache_exists(RedisKeys.cache("boolean", q)):
-        return ORJSONResponse(content=await get_cache(RedisKeys.cache("boolean", q)))
+        results = await get_cache(RedisKeys.cache("boolean", q))
+        response = pagination(results)
+        return ORJSONResponse(content=response)
     
     results = await boolean_test([q])
     if not results or len(results) > page*limit:
@@ -77,12 +86,8 @@ async def boolean_search(
                                               RedisDocKeys.sentiment, 
                                               RedisDocKeys.summary])
 
-    response = {
-        "results": results[0][(page-1)*limit:page*limit],
-        "total_pages": ceil(len(results[0])/limit)
-    }
-    
-    await caching_query_result("boolean", q, response)
+    response = pagination(results)
+    await caching_query_result("boolean", q, results)
     
     return ORJSONResponse(content=response)
 
@@ -99,8 +104,18 @@ async def tfidf_search(
         - limit: results per page
     ```
     '''
+
+    def pagination(results):
+        response = {
+            "results": results[0][(page-1)*limit:page*limit],
+            "total_pages": ceil(len(results[0])/limit)
+        }
+        return response
+
     if await check_cache_exists(RedisKeys.cache("tfidf", q)):
-        return ORJSONResponse(content=await get_cache(RedisKeys.cache("tfidf", q)))
+        results = await get_cache(RedisKeys.cache("tfidf", q))
+        response = pagination(results)
+        return ORJSONResponse(content=response)
     
     results = await ranked_test([q])
     
@@ -118,11 +133,8 @@ async def tfidf_search(
     if not results or len(results) > page*limit:
         return []
 
-    response = {
-        "results": results[0][(page-1)*limit:page*limit],
-        "total_pages": ceil(len(results[0])/limit)
-    }
+    response = pagination(results)
     
-    await caching_query_result("tfidf", q, response)
+    await caching_query_result("tfidf", q, results)
     
     return ORJSONResponse(content=response)
