@@ -295,7 +295,7 @@ async def check_cache_exists(key: str):
 @do_check_async_redis_connection(db=2)
 async def get_cache(key: str):
     asyncio.create_task(redis_async_connection[2].expire(key, 300))
-    return await redis_async_connection[2].get(key)
+    return orjson.loads(await redis_async_connection[2].get(key))
     
 
 async def test():

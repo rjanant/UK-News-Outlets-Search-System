@@ -61,7 +61,7 @@ async def boolean_search(
     '''
     # uncomment this when the caching is ready
     if await check_cache_exists(RedisKeys.cache("boolean", q)):
-        return await get_cache(RedisKeys.cache("boolean", q))
+        return ORJSONResponse(content=await get_cache(RedisKeys.cache("boolean", q)))
     
     results = await boolean_test([q])
     if not results or len(results) > page*limit:
@@ -84,7 +84,7 @@ async def boolean_search(
     
     await caching_query_result("boolean", q, response)
     
-    return response
+    return ORJSONResponse(content=response)
 
 @router.get("/tfidf")
 async def tfidf_search(
@@ -100,7 +100,7 @@ async def tfidf_search(
     ```
     '''
     if await check_cache_exists(RedisKeys.cache("tfidf", q)):
-        return await get_cache(RedisKeys.cache("tfidf", q))
+        return ORJSONResponse(content=await get_cache(RedisKeys.cache("tfidf", q)))
     
     results = await ranked_test([q])
     
@@ -125,4 +125,4 @@ async def tfidf_search(
     
     await caching_query_result("tfidf", q, response)
     
-    return response
+    return ORJSONResponse(content=response)
