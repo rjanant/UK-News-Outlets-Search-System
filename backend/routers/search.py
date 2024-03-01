@@ -6,8 +6,8 @@ from typing import Optional, Annotated
 from pydantic import BaseModel, Field
 from utils.basetype import Result
 from utils.query_engine import boolean_test, ranked_test
-from utils.redis_utils import get_document_infos, caching_query_result, is_key_exists, get_json_value
-from utils.basetype import RedisKeys
+from utils.redis_utils import caching_query_result, get_cache, get_docs_fields, check_cache_exists
+from utils.basetype import RedisKeys, RedisDocKeys
 from math import ceil
 
 router = APIRouter(
@@ -60,26 +60,31 @@ async def boolean_search(
     ```
     '''
     # uncomment this when the caching is ready
-    # if await is_key_exists(RedisKeys.cache("boolean", q)):
-    #     return await get_json_value(RedisKeys.cache("boolean", q))
+    if await check_cache_exists(RedisKeys.cache("boolean", q)):
+        return ORJSONResponse(content=await get_cache(RedisKeys.cache("boolean", q)))
     
     results = await boolean_test([q])
     if not results or len(results) > page*limit:
         return []
     
     # uncomment this if the document info is ready
-    # for idx, doc_id_list in enumerate(results):
-    #     results[idx] = await get_document_infos(doc_id_list)
+    for idx, doc_id_list in enumerate(results):
+        results[idx] = await get_docs_fields(doc_id_list, 
+                                             [RedisDocKeys.title, 
+                                              RedisDocKeys.url, 
+                                              RedisDocKeys.source, 
+                                              RedisDocKeys.date, 
+                                              RedisDocKeys.sentiment, 
+                                              RedisDocKeys.summary])
 
     response = {
         "results": results[0][(page-1)*limit:page*limit],
         "total_pages": ceil(len(results[0])/limit)
     }
     
-    # uncomment this when the caching is ready
-    # await caching_query_result("boolean", q, response)
+    await caching_query_result("boolean", q, response)
     
-    return response
+    return ORJSONResponse(content=response)
 
 @router.get("/tfidf")
 async def tfidf_search(
@@ -94,17 +99,21 @@ async def tfidf_search(
         - limit: results per page
     ```
     '''
-    # uncomment this when the caching is ready
-    # if await is_key_exists(RedisKeys.cache("tfidf", q)):
-    #     return await get_json_value(RedisKeys.cache("tfidf", q))
+    if await check_cache_exists(RedisKeys.cache("tfidf", q)):
+        return ORJSONResponse(content=await get_cache(RedisKeys.cache("tfidf", q)))
     
     results = await ranked_test([q])
     
-    # uncomment this if the document info is ready
-    # for idx, result in enumerate(results):
-    #     doc_id_list = [t[0] for t in result]
-    #     doc_info_list = await get_document_infos(doc_id_list)
-    #     results[idx] = [(doc_info_list[i], t[1]) for i, t in enumerate(result)]
+    for idx, result in enumerate(results):
+        doc_id_list = [t[0] for t in result]
+        doc_info_list = await get_docs_fields(doc_id_list,
+                                                [RedisDocKeys.title, 
+                                                RedisDocKeys.url, 
+                                                RedisDocKeys.source, 
+                                                RedisDocKeys.date, 
+                                                RedisDocKeys.sentiment, 
+                                                RedisDocKeys.summary])
+        results[idx] = [{"score": t[1], **doc_info_list[i]} for i, t in enumerate(result)]
         
     if not results or len(results) > page*limit:
         return []
@@ -114,7 +123,6 @@ async def tfidf_search(
         "total_pages": ceil(len(results[0])/limit)
     }
     
-    # uncomment this when the caching is ready
-    # await caching_query_result("tfidf", q, response)
+    await caching_query_result("tfidf", q, response)
     
-    return response
+    return ORJSONResponse(content=response)

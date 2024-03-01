@@ -265,7 +265,6 @@ async def evaluate_boolean_query(query: str,
     for idx, token in enumerate(postfix):
         if not is_operator(token):
             postfix[idx] = results.pop(0)
-    print("postfix", postfix)
     
     try:
         stack = []
@@ -328,7 +327,7 @@ async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List
     return results
     
 async def main():
-    await ranked_test()
+    await boolean_test()
 
 if __name__ == "__main__":
     asyncio.run(main())
