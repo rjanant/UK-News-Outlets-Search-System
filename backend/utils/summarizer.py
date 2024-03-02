@@ -126,7 +126,7 @@ def process_directories_and_write_summary_dictionary(
     output_file_path: str,
     summaries_dictionary: dict = None,
     number_of_initial_sentences_to_skip: int = 2,
-) -> None:
+) -> dict:
     if summaries_dictionary is None:
         summaries_dictionary = {}
 
@@ -151,11 +151,13 @@ def process_directories_and_write_summary_dictionary(
 
     print(f"Summaries written to {output_file_path}")
 
+    return summaries_dictionary
+
 
 # if __name__ == "__main__":
 #     data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data"
 #     outlet_folders = ["tele"]
-#     output_file_path = "C:/Users/Asus/Desktop/ttds-proj/backend/tele_summaries.json"
+#     output_file_path = "summaries_files/summaries.json"
 
 #     process_directories_and_write_summary_dictionary(
 #         data_path,
