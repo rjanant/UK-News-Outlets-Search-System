@@ -6,8 +6,8 @@ from collections import Counter
 from math import log, sqrt
 
 
-# Helper function to calculate term frequencies
 def compute_tf(text: str):
+    """Calculate term frequency for a given text."""
     tf_text = Counter(text)
     for i in tf_text:
         tf_text[i] = tf_text[i] / float(len(text))
@@ -16,11 +16,13 @@ def compute_tf(text: str):
 
 # Helper function to calculate inverse document frequency
 def compute_idf(word: str, corpus: list):
+    """Calculate inverse document frequency for a given word in a corpus."""
     return log(len(corpus) / sum([1.0 for i in corpus if word in i]))
 
 
 # Calculate cosine similarity between title and each sentence
 def cosine_similarity(vector1, vector2):
+    """Calculate cosine similarity between two vectors."""
     dot_product = np.dot(vector1, vector2)
     norm_a = np.linalg.norm(vector1)
     norm_b = np.linalg.norm(vector2)
