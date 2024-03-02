@@ -3,10 +3,16 @@ import pandas as pd
 from common import get_preprocessed_words
 import numpy as np
 from collections import Counter
-from math import log, sqrt
+from math import log
+import orjson
+import warnings
+import pandas as pd
+from tqdm import tqdm
+from typing import List
+import os
 
 
-def compute_tf(text: str):
+def compute_tf(text: str) -> dict:
     """Calculate term frequency for a given text."""
     tf_text = Counter(text)
     for i in tf_text:
@@ -15,13 +21,13 @@ def compute_tf(text: str):
 
 
 # Helper function to calculate inverse document frequency
-def compute_idf(word: str, corpus: list):
+def compute_idf(word: str, corpus: list) -> float:
     """Calculate inverse document frequency for a given word in a corpus."""
     return log(len(corpus) / sum([1.0 for i in corpus if word in i]))
 
 
 # Calculate cosine similarity between title and each sentence
-def cosine_similarity(vector1, vector2):
+def cosine_similarity(vector1, vector2) -> float:
     """Calculate cosine similarity between two vectors."""
     dot_product = np.dot(vector1, vector2)
     norm_a = np.linalg.norm(vector1)
@@ -33,7 +39,7 @@ def cosine_similarity(vector1, vector2):
 
 def get_summary_sentence(
     title: str, content: str, number_of_initial_sentences_to_skip: int
-):
+) -> str:
     """Get the most relevant sentence from the article content setences based on the title."""
     split_regex = r"[.!?]"
     article_sentences = re.split(split_regex, content)
@@ -77,3 +83,84 @@ def get_summary_sentence(
         np.argmax(similarities) + number_of_initial_sentences_to_skip
     )
     return article_sentences[most_similar_sentence_index]
+
+
+def get_summaries_of_csv_file(
+    csv_file_path, summaries_dictionary=None, number_of_initial_sentences_to_skip=2
+) -> dict:
+    csv_dataframe = pd.read_csv(csv_file_path)
+    title_series = csv_dataframe["title"]
+    content_series = csv_dataframe["content"]
+    doc_id_series = csv_dataframe["doc_id"]
+
+    if summaries_dictionary is None:
+        summaries_dictionary = {}
+
+    for i in range(len(title_series)):
+
+        current_title = title_series[i]
+        current_content = content_series[i]
+        current_doc_id = doc_id_series[i]
+
+        if str(current_doc_id) in summaries_dictionary.keys():
+            warnings.warn(
+                f"Duplicate doc_id found: {current_doc_id}. Overwriting the previous entry!"
+            )
+
+        try:
+            current_summary = get_summary_sentence(
+                current_title, current_content, number_of_initial_sentences_to_skip
+            )
+            summaries_dictionary[str(current_doc_id)] = current_summary
+
+        except Exception as e:
+            summaries_dictionary[str(current_doc_id)] = None
+            continue
+
+    return summaries_dictionary
+
+
+def process_directories_and_write_summary_dictionary(
+    data_path: str,
+    outlet_folders: List[str],
+    output_file_path: str,
+    summaries_dictionary: dict = None,
+    number_of_initial_sentences_to_skip: int = 2,
+) -> None:
+    if summaries_dictionary is None:
+        summaries_dictionary = {}
+
+    for outlet_folder in outlet_folders:
+        current_outlet_path = os.path.join(data_path, outlet_folder)
+        current_csv_files = [
+            file for file in os.listdir(current_outlet_path) if file.endswith(".csv")
+        ]
+
+        for csv_file in tqdm(
+            current_csv_files, desc=f"Processing summaries for {outlet_folder}"
+        ):
+            current_csv_file_path = os.path.join(current_outlet_path, csv_file)
+            summaries_dictionary = get_summaries_of_csv_file(
+                current_csv_file_path,
+                summaries_dictionary,
+                number_of_initial_sentences_to_skip,
+            )
+
+    with open(output_file_path, "wb") as file:
+        file.write(orjson.dumps(summaries_dictionary))
+
+    print(f"Summaries written to {output_file_path}")
+
+
+# if __name__ == "__main__":
+#     data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data"
+#     outlet_folders = ["tele"]
+#     output_file_path = "C:/Users/Asus/Desktop/ttds-proj/backend/tele_summaries.json"
+
+#     process_directories_and_write_summary_dictionary(
+#         data_path,
+#         outlet_folders,
+#         output_file_path,
+#         summaries_dictionary=None,
+#         number_of_initial_sentences_to_skip=2,
+#     )
