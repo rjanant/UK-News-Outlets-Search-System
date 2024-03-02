@@ -99,7 +99,9 @@ class SentimentAnalyzer:
             all_file_paths = os.listdir(folder_path)
 
             # Iterate over each file in the current outlet folder
-            for file_name in tqdm(all_file_paths, desc=outlet_folder):
+            for file_name in tqdm(
+                all_file_paths, desc=f"Processing sentiments for {outlet_folder}"
+            ):
                 # Construct the full path to the current file
                 file_path = os.path.join(folder_path, file_name)
                 # Ensure the file is a CSV before attempting to read it
@@ -117,6 +119,8 @@ class SentimentAnalyzer:
 
         with open(output_file_path, "wb") as file:
             file.write(orjson.dumps(sentiment_dictionary))
+
+        print(f"Sentiment dictionary written to {output_file_path}")
 
 
 # if __name__ == "__main__":
