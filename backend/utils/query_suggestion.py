@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from itertools import islice
 from enum import Enum
 from threading import Lock
+from symspellpy import SymSpell
 
 try:
     import termios
@@ -437,13 +438,13 @@ class FindStep(Enum):
 
 
 class QuerySuggestion:
-    
+
     CACHE_SIZE = 2048
     SHOULD_INCLUDE_COUNT = True
 
     def __init__(
         self,
-        words,
+        dictionary_path: str,
         synonyms=None,
         full_stop_words=None,
         logger=None,
@@ -454,7 +455,7 @@ class QuerySuggestion:
         """
         Initializes the Autocomplete module
 
-        :param words: A dictionary of words mapped to their context
+        # :param words: A dictionary of words mapped to their context
         :param synonyms: (optional) A dictionary of words to their synonyms.
                          The synonym words should only be here and not repeated in words parameter.
         """
@@ -468,7 +469,16 @@ class QuerySuggestion:
         self._reverse_synonyms = self._get_reverse_synonyms(self._clean_synonyms)
         self._full_stop_words = set(full_stop_words) if full_stop_words else None
         self.logger = logger
-        self.words = words
+
+        spell_checker = SymSpell()
+        spell_checker.load_pickle(dictionary_path)
+        symspell_words = spell_checker.words
+        self.words = {
+            key: {"count": value}
+            for key, value in symspell_words.items()
+            if len(key) > 2 and value > 10
+        }
+
         self.normalizer = Normalizer(
             valid_chars_for_string=valid_chars_for_string,
             valid_chars_for_integer=valid_chars_for_integer,
@@ -642,7 +652,7 @@ class QuerySuggestion:
         This requires the original search function from this class to be run,
         instead of subclasses of AutoComplete.
         """
-        result = AutoComplete.search(self, word, max_cost=max_cost, size=size)
+        result = QuerySuggestion.search(self, word, max_cost=max_cost, size=size)
         return [item for sublist in result for item in sublist]
 
     def get_word_context(self, word):
@@ -675,7 +685,7 @@ class QuerySuggestion:
 
     @staticmethod
     def _is_enough_results(results, size):
-        return AutoComplete._len_results(results) >= size
+        return QuerySuggestion._len_results(results) >= size
 
     def _is_stop_word_condition(self, matched_words, matched_prefix_of_last_word):
         return (
@@ -1129,3 +1139,10 @@ class _DawgNode:
             found_nodes = islice(found_nodes_gen, size)
 
         return map(lambda word: word.value, found_nodes)
+
+
+if __name__ == "__main__":
+
+    dictionary_path = "C:/Users/Asus/Desktop/ttds-proj/backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl"
+    query_suggestion = QuerySuggestion(dictionary_path=dictionary_path)
+    query_suggestion.search("ed")

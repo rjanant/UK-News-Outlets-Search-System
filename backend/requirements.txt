@@ -20,5 +20,4 @@ transformers
 tqdm
 symspellpy
 chardet
-fast-autocomplete
 python-Levenshtein
