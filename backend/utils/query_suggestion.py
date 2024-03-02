@@ -436,8 +436,8 @@ class FindStep(Enum):
     not_enough_results_add_some_descandants = 5
 
 
-class AutoComplete:
-
+class QuerySuggestion:
+    
     CACHE_SIZE = 2048
     SHOULD_INCLUDE_COUNT = True
 
