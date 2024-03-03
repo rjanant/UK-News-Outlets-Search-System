@@ -95,7 +95,7 @@ async def fetch_all_urls(urls):
         return await asyncio.gather(*tasks)
 
 
-def post_process(url, content_raw, date, source):
+def post_process(url, content_raw, date, source, doc_id):
     soup_data = soup(content_raw, features="lxml")
 
     doc_title = get_title(soup_data)
@@ -111,6 +111,7 @@ def post_process(url, content_raw, date, source):
         "hypertext": hyper_text_str,
         "figcaption": figcaption_text,
         "url": url,
+        "doc_id":doc_id
     }
     return output
 
@@ -119,11 +120,12 @@ async def run_scrape(package):
     urls = package[:, 0]
     dates = package[:, 1]
     sources = package[:, 2]
+    doc_id = package[:, 3]
     results = await fetch_all_urls(urls)
 
     # Post-processing in parallel using multiprocessing
     with multiprocessing.Pool() as pool:
-        output = pool.starmap(post_process, zip(urls, results, dates, sources))
+        output = pool.starmap(post_process, zip(urls, results, dates, sources, doc_id))
 
     return output
 

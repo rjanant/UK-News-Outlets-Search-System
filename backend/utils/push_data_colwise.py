@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 async def do_gather_task_push_value(json_data, key:RedisDocKeys, func):
     keys = list(json_data.keys())
-    batch_size = 1000
+    batch_size = 200
     for i in tqdm(range(0, len(keys), batch_size)):
         batch_keys = keys[i:i + batch_size]
         tasks = []

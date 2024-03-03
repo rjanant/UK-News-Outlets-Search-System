@@ -9,11 +9,34 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import orjson
+import pandas as pd
+import os, sys
+import asyncio
+
+from datetime import datetime
+
+FILENAME = os.path.basename(__file__)
+BASEPATH = os.path.dirname(__file__)
+UTILPATH = os.path.dirname(BASEPATH)
+
+sys.path.append(UTILPATH)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODEL_NAME = "mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis"
 TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME)
 MODEL = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+
+from common import Logger
+from basetype import RedisDocKeys
+from push_data_colwise import do_gather_task_push_value, func_sentiment
+
+today = datetime.now()
+today_str = today.strftime("%Y%m%d")
+today_str_dash = today.strftime("%Y-%m-%d")
+folder_path = os.path.join(UTILPATH, "data", today_str)
+
+inputfile = os.path.join(folder_path, f"data_{today_str}.csv")
+outputfile = os.path.join(folder_path, f"sentiment_dictionary.json")
 
 
 def analyze_sentiment(text, model=MODEL, tokenizer=TOKENIZER, device=DEVICE):
@@ -50,8 +73,8 @@ def analyze_sentiment(text, model=MODEL, tokenizer=TOKENIZER, device=DEVICE):
         return None
 
 
-def get_sentiment_dictionary_from_csv_path(
-    csv_path,
+def get_sentiment_dictionary_from_df(
+    df,
     device=DEVICE,
     model=MODEL,
     tokenizer=TOKENIZER,
@@ -62,18 +85,16 @@ def get_sentiment_dictionary_from_csv_path(
 
     If csv_sentiment_dictionary is None, a new dictionary will be created.
     """
-    csv_dataframe = pd.read_csv(csv_path)
-    content_series = csv_dataframe["content"]
-    doc_id_series = csv_dataframe["doc_id"]
+    content_series = df["content"]
+    doc_id_series = df["doc_id"]
 
     model.to(device)
 
     if csv_sentiment_dictionary is None:
         csv_sentiment_dictionary = {}
 
-    for index, text in enumerate(content_series):
+    for doc_id, text in zip(doc_id_series, content_series):
         sentiment_list = analyze_sentiment(text, model, tokenizer, device)
-        doc_id = doc_id_series[index]
 
         if str(doc_id) in csv_sentiment_dictionary.keys():
             warnings.warn(
@@ -86,33 +107,28 @@ def get_sentiment_dictionary_from_csv_path(
 
 
 if __name__ == "__main__":
-    data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data/"
-    outlet_folders = ["bbc", "gbn", "ind", "tele"]
-    output_file_path = "sentiment_dictionary/sentiment_dictionary.json"
+    logpath = os.path.join(UTILPATH, 'logger.log')
+    logger = Logger(logpath)
+
+    logger.log_event('info', f'{FILENAME} - Start script')
     sentiment_dictionary = {}
 
-    # Iterate over each outlet folder
-    for outlet_folder in outlet_folders:
-        # Construct the path to the current outlet folder
-        folder_path = os.path.join(data_path, outlet_folder)
-        # List all files in the current outlet folder
-        all_file_paths = os.listdir(folder_path)
+    logger.log_event('info', f'{FILENAME} - Read Data in Chunk')
+    df_all = pd.read_csv(inputfile, chunksize=100, usecols=["doc_id", "content"])
 
-        # Iterate over each file in the current outlet folder
-        for file_name in tqdm(all_file_paths, desc=outlet_folder):
-            # Construct the full path to the current file
-            file_path = os.path.join(folder_path, file_name)
-            # Ensure the file is a CSV before attempting to read it
-            if file_path.endswith(".csv"):
-                try:
-                    # Read the current CSV file into a pandas DataFrame
-                    sentiment_dictionary = get_sentiment_dictionary_from_csv_path(
-                        file_path, csv_sentiment_dictionary=sentiment_dictionary
-                    )
-                except Exception as e:
-                    print(f"Error with {file_path}: {e}")
+    # Iterate over each file in the current outlet folder
+    logger.log_event('info', f'{FILENAME} - Iterating')
+    for df in tqdm(df_all):
+        # Read the current CSV file into a pandas DataFrame
+        sentiment_dictionary = get_sentiment_dictionary_from_df(
+            df, csv_sentiment_dictionary=sentiment_dictionary
+        )
+    logger.log_event('info', f'{FILENAME} - Dumping the data to json')
 
-    with open(
-        output_file_path, "wb"
-    ) as file:  # 'wb' mode because orjson.dumps() returns bytes
+    with open(outputfile, "wb") as file:
         file.write(orjson.dumps(sentiment_dictionary))
+
+    logger.log_event('info', f'{FILENAME} - Updating the sentiment on Redis')
+    asyncio.run(do_gather_task_push_value(sentiment_dictionary, RedisDocKeys.sentiment, func_sentiment))
+
+    logger.log_event('info', f'{FILENAME} - Done')
