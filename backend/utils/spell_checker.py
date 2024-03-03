@@ -75,10 +75,11 @@ class SpellChecker:
 
         """
         print("Reading in corpus...")
-        with open(corpus_txt_path, "r", encoding="utf-8") as file:
-            corpus = file.read()
+        # with open(corpus_txt_path, "r", encoding="utf-8") as file:
+        #     corpus = file.read()
         print("Creating dictionary...")
-        self.sym_spell.create_dictionary(corpus)
+        # self.sym_spell.create_dictionary(corpus)
+        self.sym_spell.create_dictionary(corpus_txt_path)
         self.sym_spell.save_pickle(output_dictionary_path)
         print("Dictionary created and saved in ", output_dictionary_path)
 
