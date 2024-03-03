@@ -168,6 +168,7 @@ async def batch_push(batches):
 @do_check_async_redis_connection(db=1)
 async def set_news_data(article: NewsArticleData):
     # Get metadata
+    # TODO: Update the sentiment and summary
     doc_title = article.title
     doc_url = article.url
     doc_id = RedisKeys.document(article.doc_id)
@@ -186,7 +187,7 @@ async def set_news_data(article: NewsArticleData):
         redis.call('hset', ARGV[1], '{RedisDocKeys.source}', ARGV[7])
     """
     # Run the Lua script
-    await redis_async_connection[0].eval(
+    await redis_async_connection[1].eval(
         lua_script, 
         keys=[], 
         args=[
@@ -199,6 +200,9 @@ async def set_news_data(article: NewsArticleData):
             doc_source
             ]
         )
+@do_check_async_redis_connection(db=1)
+async def set_news_data_col(doc_id: str, colname: RedisDocKeys, value: str):
+    await redis_async_connection[1].hset(doc_id, colname, value)
 
 @do_check_async_redis_connection(db=1)
 async def batch_push_news_data(news_batch):
