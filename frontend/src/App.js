@@ -66,6 +66,7 @@ function App() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             spellCheck="true" // Enable spell check here
                             autoComplete="on"
+                            autoCorrect="on"
                         />
                         <select
                             className="form-select"
