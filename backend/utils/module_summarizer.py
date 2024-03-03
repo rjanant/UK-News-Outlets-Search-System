@@ -1,6 +1,5 @@
 import re
 import pandas as pd
-from common import get_preprocessed_words
 import numpy as np
 from collections import Counter
 from math import log
@@ -9,8 +8,12 @@ import warnings
 import pandas as pd
 from tqdm import tqdm
 from typing import List
-import os
+import os, sys
 
+BASEPATH = os.path.dirname(__file__)
+sys.path.append(BASEPATH)
+
+from common import get_preprocessed_words
 
 def compute_tf(text: str) -> dict:
     """Calculate term frequency for a given text."""
@@ -88,7 +91,7 @@ def get_summary_sentence(
 def get_summaries_of_csv_file(
     csv_file_path, summaries_dictionary=None, number_of_initial_sentences_to_skip=2
 ) -> dict:
-    csv_dataframe = pd.read_csv(csv_file_path)
+    csv_dataframe = pd.read_csv(csv_file_path, usecols=['doc_id', 'title', 'content'])
     title_series = csv_dataframe["title"]
     content_series = csv_dataframe["content"]
     doc_id_series = csv_dataframe["doc_id"]
@@ -111,7 +114,7 @@ def get_summaries_of_csv_file(
             current_summary = get_summary_sentence(
                 current_title, current_content, number_of_initial_sentences_to_skip
             )
-            summaries_dictionary[str(current_doc_id)] = current_summary
+            summaries_dictionary[str(current_doc_id)] = current_summary.strip()
 
         except Exception as e:
             summaries_dictionary[str(current_doc_id)] = None
