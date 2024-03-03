@@ -18,7 +18,6 @@ redis_async_connection = {
     2: None, # for cache
 }
 
-
 redis_connection = None 
 redis_config = None
 

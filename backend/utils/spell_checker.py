@@ -17,7 +17,11 @@ class SpellChecker:
             self.sym_spell.load_pickle(dictionary_path)
 
     def create_spell_checking_txt(
-        self, data_path: str, outlet_folders: List[str], output_corpus_path: str
+        self,
+        data_path: str,
+        outlet_folders: List[str],
+        output_corpus_path: str,
+        corpus_from_scratch: bool = False,
     ) -> None:
         """
         From txts with "content" and "doc_id" columns, create a txt file with all the content from all articles.
@@ -26,9 +30,11 @@ class SpellChecker:
             The path to the directory containing the outlet folders.
         outlet_folders: list
             A list of the outlet folder names.
-        output_corpus_path: str
-            Where to save the output corpus txt file containing all the articles.
+        corpus_from_scratch: bool
+            If True, the output file will be overwritten if it exists; if False, content will be appended to the existing file.
         """
+        file_mode = "w" if corpus_from_scratch else "a"
+
         for outlet_folder in outlet_folders:
             # Construct the path to the current outlet folder
             folder_path = os.path.join(data_path, outlet_folder)
@@ -47,11 +53,12 @@ class SpellChecker:
                         try:
                             # Open the file in append mode and write the article string
                             with open(
-                                output_corpus_path, "a", encoding="utf-8"
+                                output_corpus_path, file_mode, encoding="utf-8"
                             ) as file:
                                 file.write(
                                     article + "\n"
                                 )  # Add a newline to separate articles
+                            file_mode = "a"  # Change the file mode to append
                         except Exception as e:
                             pass
 
@@ -67,10 +74,13 @@ class SpellChecker:
             Where to save the output dictionary.
 
         """
+        print("Reading in corpus...")
         with open(corpus_txt_path, "r", encoding="utf-8") as file:
             corpus = file.read()
+        print("Creating dictionary...")
         self.sym_spell.create_dictionary(corpus)
         self.sym_spell.save_pickle(output_dictionary_path)
+        print("Dictionary created and saved in ", output_dictionary_path)
 
     def load_dictionary(self, dictionary_path: str) -> None:
         """Load the SymSpell dictionary from a pickle file."""

@@ -21,3 +21,4 @@ tqdm
 symspellpy
 chardet
 python-Levenshtein
+pydantic

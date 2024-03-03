@@ -77,7 +77,7 @@ class SentimentAnalyzer:
 
         return sentiment_dictionary
 
-    def process_directories_and_write(
+    def process_directories_for_sentiment_and_write(
         self,
         data_path: str,
         outlet_folders: List[str],
@@ -129,8 +129,8 @@ class SentimentAnalyzer:
 #     sentiment_analyzer.get_sentiment_dictionary_from_csv_path(
 #         "C:/Users/Asus/Desktop/ttds-proj/backend/data/bbc/bbc_data_20240217_0.csv"
 #     )
-#     sentiment_analyzer.process_directories_and_write(
-#         "C:/Users/Asus/Desktop/ttds-proj/backend/data",
-#         ["tele"],
-#         "C:/Users/Asus/Desktop/ttds-proj/backend/sentiment_test.json",
-#     )
+    # sentiment_analyzer.process_directories_for_sentiment_and_write(
+    #     "C:/Users/Asus/Desktop/ttds-proj/backend/data",
+    #     ["tele"],
+    #     "C:/Users/Asus/Desktop/ttds-proj/backend/sentiment_test.json",
+    # )

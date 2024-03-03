@@ -402,22 +402,7 @@ except ImportError:
     try:
         from pylev import levenshtein as levenshtein_distance
     except ImportError:
-        raise RuntimeError(
-            """
-            Unable to import a levenshtein distance calculation module.
-            Please add python-Levenshtein or pylev to your Python dependencies.
-
-            Installing this package as
-
-            pip install fast-autocomplete[levenshtein]
-
-            or
-
-            pip install fast-autocomplete[pylev]
-
-            Note that fast-autocomplete[levenshtein] is preferred and is much faster than fast-autocomplete[pylev]
-        """
-        )
+        raise RuntimeError()
 
 DELIMITER = "__"
 ORIGINAL_KEY = "original_key"
@@ -435,6 +420,108 @@ class FindStep(Enum):
     fuzzy_found = 3
     rest_of_fuzzy_round2 = 4
     not_enough_results_add_some_descandants = 5
+
+
+class _DawgNode:
+    """
+    The Dawg data structure keeps a set of words, organized with one node for
+    each letter. Each node has a branch for each letter that may follow it in the
+    set of words.
+    """
+
+    __slots__ = ("word", "original_key", "children", "count")
+
+    def __init__(self):
+        self.word = None
+        self.original_key = None
+        self.children = {}
+        self.count = 0
+
+    def __getitem__(self, key):
+        return self.children[key]
+
+    def __repr__(self):
+        return f"<DawgNode children={list(self.children.keys())}, {self.word}>"
+
+    @property
+    def value(self):
+        return self.original_key or self.word
+
+    def insert(
+        self,
+        word,
+        normalized_word,
+        add_word=True,
+        original_key=None,
+        count=0,
+        insert_count=True,
+    ):
+        node = self
+        for letter in normalized_word:
+            if letter not in node.children:
+                node.children[letter] = _DawgNode()
+
+            node = node.children[letter]
+
+        if add_word:
+            node.word = word
+            node.original_key = original_key
+            if insert_count:
+                node.count = int(count)  # converts any str to int
+        return node
+
+    def get_descendants_nodes(
+        self, size, should_traverse=True, full_stop_words=None, insert_count=True
+    ):
+        if insert_count is True:
+            size = INF
+
+        que = deque()
+        unique_nodes = {self}
+        found_nodes_set = set()
+        full_stop_words = full_stop_words if full_stop_words else set()
+
+        for letter, child_node in self.children.items():
+            if child_node not in unique_nodes:
+                unique_nodes.add(child_node)
+                que.append((letter, child_node))
+
+        while que:
+            letter, child_node = que.popleft()
+            child_value = child_node.value
+            if child_value:
+                if child_value in full_stop_words:
+                    should_traverse = False
+                if child_value not in found_nodes_set:
+                    found_nodes_set.add(child_value)
+                    yield child_node
+                    if len(found_nodes_set) > size:
+                        break
+
+            if should_traverse:
+                for letter, grand_child_node in child_node.children.items():
+                    if grand_child_node not in unique_nodes:
+                        unique_nodes.add(grand_child_node)
+                        que.append((letter, grand_child_node))
+
+    def get_descendants_words(
+        self, size, should_traverse=True, full_stop_words=None, insert_count=True
+    ):
+        found_nodes_gen = self.get_descendants_nodes(
+            size,
+            should_traverse=should_traverse,
+            full_stop_words=full_stop_words,
+            insert_count=insert_count,
+        )
+
+        if insert_count is True:
+            found_nodes = sorted(
+                found_nodes_gen, key=lambda node: node.count, reverse=True
+            )[: size + 1]
+        else:
+            found_nodes = islice(found_nodes_gen, size)
+
+        return map(lambda word: word.value, found_nodes)
 
 
 class QuerySuggestion:
@@ -677,7 +764,19 @@ class QuerySuggestion:
         if result == -1:
             result = list(self._find_and_sort(word, max_cost, size))
             self._lfu_cache.set(key, result)
-        return result
+        return self.filter_single_word_results(result)
+
+    def filter_single_word_results(self, original_list):
+        filtered_list = []
+        appeared_strings = set()
+
+        for sublist in original_list:
+            for string in sublist:
+                if string not in appeared_strings:
+                    filtered_list.append(string)
+                    appeared_strings.add(string)
+                    break
+        return filtered_list
 
     @staticmethod
     def _len_results(results):
@@ -1141,8 +1240,8 @@ class _DawgNode:
         return map(lambda word: word.value, found_nodes)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    dictionary_path = "C:/Users/Asus/Desktop/ttds-proj/backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl"
-    query_suggestion = QuerySuggestion(dictionary_path=dictionary_path)
-    query_suggestion.search("ed")
+#     dictionary_path = "C:/Users/Asus/Desktop/ttds-proj/backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl"
+#     query_suggestion = QuerySuggestion(dictionary_path=dictionary_path)
+#     query_suggestion.search("ed")
