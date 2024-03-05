@@ -124,6 +124,7 @@ class RedisDocKeys:
     sentiment = "sentiment"
     summary = "summary"
     source = "source"
+    topic = "topic"
 
 
 if __name__ == "__main__":
