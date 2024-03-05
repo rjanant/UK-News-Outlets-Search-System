@@ -19,3 +19,6 @@ torch
 transformers
 tqdm
 symspellpy
+chardet
+python-Levenshtein
+pydantic
