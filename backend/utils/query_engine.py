@@ -95,20 +95,24 @@ async def get_doc_ids_from_pattern(pattern: str) -> List[int]:
 def negate_doc_ids(doc_ids: list, doc_ids_list: list) -> list:
     return list(set(doc_ids_list) - set(doc_ids))
 
-async def evaluate_proximity_pattern(n: int, w1: str, w2: str, doc_ids_list: list) -> List[int]:
+async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
     # find all the doc_ids for w1 and w2
     doc_ids_for_w1 = await get_doc_ids_from_string(w1)
     # find the doc_ids that satisfy the condition
     doc_ids = []
-    for doc_id in doc_ids_for_w1:
+    values = await get_json_values([RedisKeys.index(w1), RedisKeys.index(w2)])
+    async def process_doc_id(doc_id):
         try:
-            values = await get_json_values([RedisKeys.index(w1), RedisKeys.index(w2)])
             positions_for_w1 = delta_decode_list(values[0][doc_id])
             positions_for_w2 = delta_decode_list(values[1][doc_id])
             if any([abs(pos1 - pos2) <= int(n) for pos1 in positions_for_w1 for pos2 in positions_for_w2]):
-                doc_ids.append(doc_id)
+                return doc_id
         except:
             pass
+
+    tasks = [process_doc_id(doc_id) for doc_id in doc_ids_for_w1]
+    results = await asyncio.gather(*tasks)
+    doc_ids = [result for result in results if result is not None]
     return doc_ids
 
 async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patterns: dict[str, re.Pattern]) -> List[int]:
@@ -120,7 +124,7 @@ async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patt
         w1 = proximity_match.group(2)
         w2 = proximity_match.group(3)
         print("Handle proximity pattern", n, w1, w2)
-        return await evaluate_proximity_pattern(n, w1, w2, doc_ids_list)
+        return await evaluate_proximity_pattern(n, w1, w2)
     else:
         # there is no NOT operator
         if exact_match:
@@ -337,8 +341,8 @@ async def ranked_test(ranked_queries: List[str] = ["Comic Relief"]) -> List[List
     return results
     
 async def main():
-    # await boolean_test()
-    await ranked_test()
+    print(await boolean_test())
+    # await ranked_test()
     
     #### BENCHMARKING
     # result = await ranked_test()
