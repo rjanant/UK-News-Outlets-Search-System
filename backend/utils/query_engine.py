@@ -59,7 +59,7 @@ def handle_binary_operator(operator: str, left: list, right: list) -> list:
         print("OR operation")
         return list(set(left) | set(right))
 
-def handle_not_operator(operand: list, doc_ids_list: list) -> list:
+def handle_not_operator(operand: List[int], doc_ids_list: List[int]) -> List[int]:
     print("NOT operation")
     if operand is None:
         return doc_ids_list
@@ -69,7 +69,7 @@ async def get_doc_ids_from_string(string: str) -> List[int]:
     # check if string is a phrase bounded by double quotes 
     if await is_key_exists(RedisKeys.index(string)):
         term_index = await get_json_value(RedisKeys.index(string))
-        return list(term_index.keys())
+        return list(map(int, term_index.keys()))
     else:
         return []
 
@@ -85,14 +85,14 @@ async def get_doc_ids_from_pattern(pattern: str) -> List[int]:
         for pos in positions:
             try:
                 if all([pos + i in words_index[i][doc_id] for i in range(1, len(words))]) and doc_id not in doc_ids:
-                    doc_ids.append(doc_id)
+                    doc_ids.append(int(doc_id))
             except:
                 pass
 
     return doc_ids
 
 
-def negate_doc_ids(doc_ids: list, doc_ids_list: list) -> list:
+def negate_doc_ids(doc_ids: List[int], doc_ids_list: List[int]) -> List[int]:
     return list(set(doc_ids_list) - set(doc_ids))
 
 async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
@@ -106,7 +106,7 @@ async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
             positions_for_w1 = delta_decode_list(values[0][doc_id])
             positions_for_w2 = delta_decode_list(values[1][doc_id])
             if any([abs(pos1 - pos2) <= int(n) for pos1 in positions_for_w1 for pos2 in positions_for_w2]):
-                return doc_id
+                return int(doc_id)
         except:
             pass
 
@@ -115,7 +115,7 @@ async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
     doc_ids = [result for result in results if result is not None]
     return doc_ids
 
-async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patterns: dict[str, re.Pattern]) -> List[int]:
+async def evaluate_subquery(subquery: str, special_patterns: Dict[str, re.Pattern]) -> List[int]:
     
     proximity_match = re.match(special_patterns['proximity'], subquery)
     exact_match = re.match(special_patterns['exact'], subquery)
@@ -126,7 +126,6 @@ async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patt
         print("Handle proximity pattern", n, w1, w2)
         return await evaluate_proximity_pattern(n, w1, w2)
     else:
-        # there is no NOT operator
         if exact_match:
             print("handle phrase", subquery[1:-1])
             return await get_doc_ids_from_pattern(subquery[1:-1])
@@ -134,30 +133,11 @@ async def evaluate_subquery(subquery: str, doc_ids_list: List[int], special_patt
             print("handle word(s)", subquery)
             return await get_doc_ids_from_string(subquery)
 
-def read_boolean_queries(file_name: str) -> list:
-    queries = []
-    with open(os.path.join(CURRENT_DIR, file_name), "r") as f:
-        for line in f.readlines():
-            # split the query by the first space
-            query_id, query = line.split(" ", 1)
-            queries.append((query_id, query.strip()))
-    return queries
-
-def read_ranked_queries(file_name: str) -> list:
-    queries = []
-    with open(os.path.join(CURRENT_DIR, file_name), "r") as f:
-        for line in f.readlines():
-            # split the query by the first space
-            query_id, query = line.split(" ", 1)
-            queries.append((query_id, query.strip()))
-        
-    return queries
-
-async def calculate_tf_idf(tokens: List,
+async def calculate_tf_idf(tokens: List[str],
                            doc_id: str,
                            docs_size: int,
-                           word_freq: dict,
-                           doc_freq: dict
+                           word_freq: Dict[str, int],
+                           doc_freq: Dict[str, int]
                         ) -> float:
     tf_idf_score = 0
     for token in tokens:
@@ -270,12 +250,11 @@ async def evaluate_boolean_query(query: str,
     print("postfix", postfix)
 
     # evalute the value for the stuff first
-    tasks = [evaluate_subquery(token, doc_ids_list, special_patterns) for token in postfix if not is_operator(token)]
+    tasks = [evaluate_subquery(token, special_patterns) for token in postfix if not is_operator(token)]
     results = await asyncio.gather(*tasks)
     for idx, token in enumerate(postfix):
         if not is_operator(token):
             postfix[idx] = results.pop(0)
-    
     try:
         stack = []
         for token in postfix:
