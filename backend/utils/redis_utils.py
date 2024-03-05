@@ -195,9 +195,10 @@ async def set_news_data(article: NewsArticleData):
     doc_url = article.url
     doc_id = RedisKeys.document(article.doc_id)
     doc_date = article.date
-    doc_sentiment = 'positive'
+    doc_sentiment = 'neutral'
     doc_summary = ".".join(article.content.split('.')[:3])
     doc_source = article.url.split('.')[1]
+    doc_topic = "-".join(article.url.split("/")[3:-1][:2])
 
     # Set the values
     lua_script = f"""
@@ -207,6 +208,7 @@ async def set_news_data(article: NewsArticleData):
         redis.call('hset', ARGV[1], '{RedisDocKeys.sentiment}', ARGV[5])
         redis.call('hset', ARGV[1], '{RedisDocKeys.summary}', ARGV[6])
         redis.call('hset', ARGV[1], '{RedisDocKeys.source}', ARGV[7])
+        redis.call('hset', ARGV[1], '{RedisDocKeys.topic}', ARGV[8])
         redis.call('sadd', '{RedisKeys.urls}', ARGV[2])
     """
     # Run the Lua script
@@ -220,7 +222,8 @@ async def set_news_data(article: NewsArticleData):
             doc_date, #4
             doc_sentiment, #5
             doc_summary, #6
-            doc_source
+            doc_source, #7
+            doc_topic #8
             ]
         )
     
