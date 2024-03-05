@@ -66,6 +66,10 @@ function App() {
                             aria-label="Search"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            spellCheck="true" // Enable spell check here
+                            autoComplete='on' // Enable autocomplete here
+                            autoCorrect='on' // Enable auto correct here
+                            
                         />
                         <select
                             className="form-select"

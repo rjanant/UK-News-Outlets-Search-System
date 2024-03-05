@@ -1,10 +1,11 @@
-// At the top of your BooleanResultsPage.js, make sure to import the fetchSearchBoolean function
 import React, { useState } from 'react';
-import { fetchSearchBoolean } from './api'; // Make sure this is the correct path to your API functions
+import { fetchSearchBoolean } from './api'; 
 import { Container, Navbar, Nav, InputGroup, FormControl, Button, Card, Pagination, Badge } from 'react-bootstrap';
 import { BsSearch } from 'react-icons/bs';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import QueryExpansion from './queryExpansion'; // Adjust the path as necessary
+
 
 function BooleanResultsPage() {
     const { searchResults } = useLocation().state || { searchResults: [] }; // Default to empty array if no state
@@ -45,6 +46,12 @@ function BooleanResultsPage() {
         }
     };
 
+    const handleQueryExpansionSelect = (newQuery) => {
+        console.log("Selected expanded query:", newQuery);
+        setSearchQuery(newQuery);
+        performSearch(newQuery);
+      };
+
     return (
         <>
             <Navbar bg="light" expand="lg">
@@ -59,6 +66,8 @@ function BooleanResultsPage() {
                     </Navbar.Collapse>
                 </Container>
             </Navbar>
+            
+            <QueryExpansion onQuerySelect={handleQueryExpansionSelect} />
 
             <Container>
                 <InputGroup className="mb-4 mt-3">
@@ -75,7 +84,7 @@ function BooleanResultsPage() {
                     </Button>
                 </InputGroup>
 
-                <h2>Boolean Search Results</h2>
+                <h2>Boolean Search Results </h2>
                 <ul className="list-unstyled">
                     {searchResults.map((result, index) => (
                         <li key={index} className="mb-3">
