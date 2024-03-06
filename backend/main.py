@@ -10,6 +10,8 @@ load_dotenv()
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
+
+
 app = FastAPI(dependencies=[])
 
 # change the port if you want (react app)
