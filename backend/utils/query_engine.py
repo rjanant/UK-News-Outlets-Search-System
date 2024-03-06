@@ -13,7 +13,8 @@ from redis_utils import get_doc_size, get_doc_ids_list, get_json_values, is_key_
 from build_index import delta_decode_list
 from basetype import RedisKeys
 
-STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
+# STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
+
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 NUM_OF_CORES = os.cpu_count()
 SPECIAL_PATTERN = {

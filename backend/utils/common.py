@@ -11,7 +11,9 @@ from basetype import NewsArticlesFragment, NewsArticleData, NewsArticlesBatch
 import numpy as np
 import logging
 
-STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
+# STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
+from .constant import STOP_WORDS_FILE_PATH as STOP_WORDS_FILE
+
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 stemmer = PorterStemmer()

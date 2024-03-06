@@ -15,7 +15,8 @@ from utils.redis_utils import (
 from utils.basetype import RedisKeys, RedisDocKeys
 from math import ceil
 from utils.spell_checker import SpellChecker
-from utils.constant import SPELL_CHECK_DICTIONARY_PATH
+from utils.query_suggestion import QuerySuggestion
+from utils.constant import SPELLCHECK_AND_AUTOCORRECT_DICTIONARY_PATH
 
 router = APIRouter(
     prefix=f"/{basename(__file__).replace('.py', '')}",
@@ -172,7 +173,7 @@ async def tfidf_search(
     return ORJSONResponse(content=response)
 
 
-spell_checker = SpellChecker(dictionary_path=SPELL_CHECK_DICTIONARY_PATH)
+spell_checker = SpellChecker(dictionary_path=SPELLCHECK_AND_AUTOCORRECT_DICTIONARY_PATH)
 
 @router.get("/spellcheck")
 async def spellcheck(
