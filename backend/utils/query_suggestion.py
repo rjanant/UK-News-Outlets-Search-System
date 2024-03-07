@@ -9,6 +9,17 @@ from itertools import islice
 from enum import Enum
 from threading import Lock
 from symspellpy import SymSpell
+import re
+from collections import Counter
+import orjson
+from typing import List
+
+from utils.constant import (
+    STOP_WORDS_FILE_PATH,
+    MONOGRAM_PKL_PATH,
+    MONOGRAM_AND_BIGRAM_DICTIONARY_PATH,
+    FULL_TXT_CORPUS_PATH,
+)
 
 try:
     import termios
@@ -18,6 +29,9 @@ except Exception:
 
 NORMALIZED_CACHE_SIZE = 2048
 MAX_WORD_LENGTH = 40
+
+with open(STOP_WORDS_FILE_PATH, "r") as file:
+    FULL_STOP_WORDS = file.read().split("\n")
 
 
 class CacheNode:
@@ -524,6 +538,24 @@ class _DawgNode:
         return map(lambda word: word.value, found_nodes)
 
 
+def generate_bigrams(text):
+    # Tokenize the text by whitespace and punctuation
+    words = re.findall(
+        r"\b\w+\b", text.lower()
+    )  # This regex will match word characters between word boundaries
+    # Yield bigrams as tuples
+    return zip(words, words[1:])
+
+
+def calculate_bigram_frequencies(file_path):
+    print("Calculating bigram frequencies...")
+    bigram_counter = Counter()
+    with open(file_path, "r", encoding="utf-8") as file:
+        for line in file:
+            bigram_counter.update(generate_bigrams(line))
+    return bigram_counter
+
+
 class QuerySuggestion:
 
     CACHE_SIZE = 2048
@@ -531,9 +563,9 @@ class QuerySuggestion:
 
     def __init__(
         self,
-        dictionary_path: str,
+        dictionary_path: str = MONOGRAM_PKL_PATH,
         synonyms=None,
-        full_stop_words=None,
+        full_stop_words: List[str] = FULL_STOP_WORDS,
         logger=None,
         valid_chars_for_string=None,
         valid_chars_for_integer=None,
@@ -563,7 +595,7 @@ class QuerySuggestion:
         self.words = {
             key: {"count": value}
             for key, value in symspell_words.items()
-            if len(key) > 2 and value > 10
+            if len(key) > 3 and value > 7 and key not in self._full_stop_words
         }
 
         self.normalizer = Normalizer(
@@ -574,6 +606,48 @@ class QuerySuggestion:
         new_words = self._get_partial_synonyms_to_words()
         self.words.update(new_words)
         self._populate_dwg()
+
+    def create_monogram_and_bigram_dictionary(
+        self,
+        full_corpus_txt_path: str = FULL_TXT_CORPUS_PATH,
+        output_path: str = MONOGRAM_AND_BIGRAM_DICTIONARY_PATH,
+    ):
+        monograms = self.words
+
+        print("Creating bigrams...")
+        bigram_frequencies = calculate_bigram_frequencies(full_corpus_txt_path)
+
+        monogram_and_bigram_dictionary = {
+            monogram: {"count": info["count"]} for monogram, info in monograms.items()
+        }
+
+        print("Creating monogram and bigram dictionary...")
+        for bigram, freq in bigram_frequencies.items():
+            if (
+                freq > 10
+                and bigram[0] not in self._full_stop_words
+                and bigram[1] not in self._full_stop_words
+                and bigram[0] in monograms.keys()
+                and bigram[1] in monograms.keys()
+            ):
+                bigram_text = " ".join(
+                    bigram
+                )  # Join the bigram tuple into a single string
+                monogram_and_bigram_dictionary[bigram_text] = {"count": freq}
+
+        with open(
+            output_path,
+            "wb",
+        ) as file:
+            file.write(orjson.dumps(monogram_and_bigram_dictionary))
+        print(
+            "Monogram and bigram dictionary created and saved in ",
+            output_path,
+        )
+
+    def load_words(self, words_path: str = MONOGRAM_AND_BIGRAM_DICTIONARY_PATH):
+        with open(words_path, "r") as file:
+            self.words = orjson.loads(file.read())
 
     def _get_clean_and_partial_synonyms(self):
         """
@@ -777,6 +851,8 @@ class QuerySuggestion:
                     appeared_strings.add(string)
                     break
         return filtered_list
+
+    # def suggest_last_
 
     @staticmethod
     def _len_results(results):

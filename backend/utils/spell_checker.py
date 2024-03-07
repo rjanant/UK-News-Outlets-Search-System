@@ -33,6 +33,8 @@ class SpellChecker:
         corpus_from_scratch: bool
             If True, the output file will be overwritten if it exists; if False, content will be appended to the existing file.
         """
+        print("Creating txt corpus of contents of all documents...")
+
         file_mode = "w" if corpus_from_scratch else "a"
 
         for outlet_folder in outlet_folders:
@@ -49,18 +51,25 @@ class SpellChecker:
                 if file_path.endswith(".csv"):
                     df = pd.read_csv(file_path)
                     content_series = df["content"]
-                    for article in content_series:
+                    doc_id_series = df["doc_id"]
+                    for index, article in enumerate(content_series):
                         try:
-                            # Open the file in append mode and write the article string
                             with open(
                                 output_corpus_path, file_mode, encoding="utf-8"
                             ) as file:
-                                file.write(
-                                    article + "\n"
-                                )  # Add a newline to separate articles
-                            file_mode = "a"  # Change the file mode to append
+                                file.write(article + "\n")
+                            file_mode = "a"
+                        except TypeError as te:
+                            if "unsupported operand type(s) for +: 'float' and 'str'" in str(te):
+                                # If the specific TypeError is caught, you might want to handle it differently
+                                # or simply pass to ignore it.
+                                pass
+                            else:
+                                # Handle other TypeErrors that are not about concatenating float with str
+                                print(f"Skipping article {doc_id_series[index]} due to TypeError: {te}")
                         except Exception as e:
-                            pass
+                            # This catches all other exceptions and prints the error message.
+                            print(f"Skipping article {doc_id_series[index]} due to error: {e}")
 
     def create_and_save_spellcheck_dictionary(
         self, corpus_txt_path: str, output_dictionary_path: str

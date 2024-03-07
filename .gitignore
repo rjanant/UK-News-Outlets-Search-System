@@ -168,3 +168,4 @@ data/
 backend/utils/result/
 backend/utils/index
 backend/tutorial (1).ipynb
+backend/utils/spell_checking_and_autocomplete_files/corpus.txt

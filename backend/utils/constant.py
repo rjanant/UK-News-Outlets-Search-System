@@ -8,11 +8,27 @@ CHILD_INDEX_PATH = os.path.abspath(
 GLOBAL_INDEX_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "index", "global")
 )
-SPELLCHECK_AND_AUTOCORRECT_DICTIONARY_PATH = os.path.abspath(
+MONOGRAM_PKL_PATH = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
         "spell_checking_and_autocomplete_files",
         "symspell_dictionary.pkl",
+    )
+)
+
+MONOGRAM_AND_BIGRAM_DICTIONARY_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "spell_checking_and_autocomplete_files",
+        "monogram_and_bigram_dictionary.json",
+    )
+)
+
+FULL_TXT_CORPUS_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "spell_checking_and_autocomplete_files",
+        "corpus.txt",
     )
 )
 
@@ -23,13 +39,6 @@ STOP_WORDS_FILE_PATH = os.path.abspath(
     )
 )
 
-STOPWORDS_LIST_PATH = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "spell_checking_and_autocomplete_files",
-        "stopwords.txt",
-    )
-)
 
 class Source(Enum):
     BBC = "bbc"
