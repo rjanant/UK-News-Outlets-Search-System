@@ -10,8 +10,6 @@ load_dotenv()
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
-
-
 app = FastAPI(dependencies=[])
 
 # change the port if you want (react app)
@@ -32,8 +30,9 @@ app.add_middleware(
 app.include_router(api_router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", 
-                host="127.0.0.1",
-                port=8001,
-                reload=True,
-                )
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=8001,
+        reload=True,
+    )

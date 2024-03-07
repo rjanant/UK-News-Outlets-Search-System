@@ -16,7 +16,7 @@ from utils.basetype import RedisKeys, RedisDocKeys
 from math import ceil
 from utils.spell_checker import SpellChecker
 from utils.query_suggestion import QuerySuggestion
-from utils.constant import MONOGRAM_PKL_PATH
+from utils.constant import MONOGRAM_PKL_PATH, FULL_TXT_CORPUS_PATH
 
 router = APIRouter(
     prefix=f"/{basename(__file__).replace('.py', '')}",
