@@ -563,7 +563,7 @@ class QuerySuggestion:
 
     def __init__(
         self,
-        dictionary_path: str = MONOGRAM_PKL_PATH,
+        monogram_pkl_path: str = MONOGRAM_PKL_PATH,
         synonyms=None,
         full_stop_words: List[str] = FULL_STOP_WORDS,
         logger=None,
@@ -590,10 +590,10 @@ class QuerySuggestion:
         self.logger = logger
 
         spell_checker = SymSpell()
-        spell_checker.load_pickle(dictionary_path)
+        spell_checker.load_pickle(monogram_pkl_path)
         symspell_words = spell_checker.words
         self.words = {
-            key: {"count": value}
+            key: {"count": int(value / 10)}
             for key, value in symspell_words.items()
             if len(key) > 3 and value > 7 and key not in self._full_stop_words
         }
@@ -617,18 +617,36 @@ class QuerySuggestion:
         print("Creating bigrams...")
         bigram_frequencies = calculate_bigram_frequencies(full_corpus_txt_path)
 
-        monogram_and_bigram_dictionary = {
-            monogram: {"count": info["count"]} for monogram, info in monograms.items()
-        }
+        # monogram_and_bigram_dictionary = {
+        #     monogram: {"count": info["count"]}
+        #     for monogram, info in monograms.items()
+        #     if "'" not in monogram and monogram not in self._full_stop_words
+        # }
+
+        monogram_and_bigram_dictionary = {}
+        for monogram, info in monograms.items():
+            if (
+                "'" not in monogram
+                and "’" not in monogram
+                and '"' not in monogram
+                and monogram not in self._full_stop_words
+            ):
+                monogram_and_bigram_dictionary[monogram] = {"count": info["count"]}
 
         print("Creating monogram and bigram dictionary...")
         for bigram, freq in bigram_frequencies.items():
             if (
-                freq > 10
+                freq > 1
                 and bigram[0] not in self._full_stop_words
                 and bigram[1] not in self._full_stop_words
                 and bigram[0] in monograms.keys()
                 and bigram[1] in monograms.keys()
+                and "'" not in bigram[0]
+                and "'" not in bigram[1]
+                and "’" not in bigram[0]
+                and "’" not in bigram[1]
+                and '"' not in bigram[0]
+                and '"' not in bigram[1]
             ):
                 bigram_text = " ".join(
                     bigram
@@ -646,7 +664,7 @@ class QuerySuggestion:
         )
 
     def load_words(self, words_path: str = MONOGRAM_AND_BIGRAM_DICTIONARY_PATH):
-        with open(words_path, "r") as file:
+        with open(words_path, "r", encoding="utf-8") as file:
             self.words = orjson.loads(file.read())
 
     def _get_clean_and_partial_synonyms(self):
@@ -838,7 +856,8 @@ class QuerySuggestion:
         if result == -1:
             result = list(self._find_and_sort(word, max_cost, size))
             self._lfu_cache.set(key, result)
-        return self.filter_single_word_results(result)
+        # return self.filter_single_word_results(result)
+        return result
 
     def filter_single_word_results(self, original_list):
         filtered_list = []
@@ -1212,6 +1231,62 @@ class QuerySuggestion:
 
     def get_count_of_word(self, word):
         return self.update_count_of_word(word)
+    
+    def modify_lists_allow_first_repeat(self, lists):
+        """
+        Modify the to prevent the second/third element from repeating. The first
+        string is allowed to repeat.
+        """
+        seen = set()  # To keep track of non-first strings that have already appeared
+        result = []  # To store the modified lists
+
+        for lst in lists:
+            if len(lst) == 1:
+                result.append(lst)
+                continue
+            # Always keep the first element
+            new_lst = lst[:1] if lst else []
+
+            # For the second and subsequent elements, keep only if not seen before
+            for s in lst[1:]:
+                if s not in seen:
+                    seen.add(s)  # Mark as seen now
+                    new_lst.append(s)  # Add to the current list if not seen
+
+            # Append the modified list to the result, ensuring it has at most two strings
+            result.append(new_lst[:2])
+
+        return result
+
+    def get_query_suggestions(self, query: str, max_cost: int = 2, size: int = 5):
+        """
+        Get suggestions for the query
+        """
+        query = " ".join(
+            [word for word in query.split() if word not in FULL_STOP_WORDS]
+        )
+        if len(query.split()) > 1:
+            # if yes, get the last word
+            string_to_suggest_off = " ".join(query.split()[-2:])
+            prefix = " ".join(query.split()[:-2])
+        else:
+            string_to_suggest_off = query
+            prefix = ""
+
+        answer = self.search(word=(string_to_suggest_off), size=size)
+
+        if not answer and len(query.split()) > 1:
+            # if yes, get the last word
+            string_to_suggest_off = query.split()[-1]
+            prefix = " ".join(query.split()[:-1])
+            print("\nNo suggestions found for two words. Trying with a word.")
+            print("New prefix", prefix)
+            print("New to suggest off:", string_to_suggest_off, "\n")
+            answer = self.search(word=(string_to_suggest_off), size=5)
+        
+        answer_list = self.modify_lists_allow_first_repeat(answer)
+        answers = [" ".join([prefix, " ".join(lst)]) for lst in answer_list]
+        return answers
 
 
 class _DawgNode:
@@ -1314,6 +1389,7 @@ class _DawgNode:
             found_nodes = islice(found_nodes_gen, size)
 
         return map(lambda word: word.value, found_nodes)
+
 
 
 # if __name__ == "__main__":
