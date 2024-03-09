@@ -2,6 +2,8 @@ import pandas as pd
 import os, sys
 import asyncio
 
+from tqdm import tqdm
+
 from datetime import datetime
 
 FILENAME = os.path.basename(__file__)
@@ -61,28 +63,37 @@ if __name__ == "__main__":
     today_str_dash = today.strftime("%Y-%m-%d")
 
     folder_path = os.path.join(UTILPATH, "data", today_str)
+    files = os.listdir(folder_path)
+    files = [i for i in files if f'data_{today_str}' in i]
+    # inputfile = os.path.join(folder_path, f"data_{today_str}.csv")
+    for idx, f in tqdm(enumerate(files)):
+        inputfile = os.path.join(folder_path, f)
+        indexpath = f"data/{today_str}"
+        indexname = f.replace('data_', 'index_').replace('.csv', '.json')
 
-    inputfile = os.path.join(folder_path, f"data_{today_str}.csv")
-    indexpath = f"data/{today_str}"
-    indexname = 'index.json'
-
-    logger.log_event('info', f'{FILENAME} - Loading Data')
-    news_batch = load_data(inputfile, today_str_dash)
-
-    logger.log_event('info', f'{FILENAME} - Creating Index')
-    inverted_index = positional_inverted_index(news_batch)
-
-    logger.log_event('info', f'{FILENAME} - Encoding')
-    encode_index(inverted_index)
-
-    logger.log_event('info', f'{FILENAME} - Saving JSON File')
-    save_json_file(indexname, inverted_index.model_dump(), indexpath)
-
-    logger.log_event('info', f'{FILENAME} - Pusing Index to Redis')
-    asyncio.run(update_index(inverted_index))
+        indexpathfile = os.path.join(folder_path, indexname)
+        if os.path.exists(indexpathfile):
+            # skip if the index does exist
+            continue
 
 
-    logger.log_event('info', f'{FILENAME} - Pusing Data to Redis')
-    asyncio.run(batch_push_news_data(news_batch))
+        logger.log_event('info', f'{FILENAME} - {idx} Loading Data')
+        news_batch = load_data(inputfile, today_str_dash)
+
+        logger.log_event('info', f'{FILENAME} - {idx} Creating Index')
+        inverted_index = positional_inverted_index(news_batch)
+
+        logger.log_event('info', f'{FILENAME} - {idx} Encoding')
+        encode_index(inverted_index)
+
+        logger.log_event('info', f'{FILENAME} - {idx} Saving JSON File')
+        save_json_file(indexname, inverted_index.model_dump(), indexpath)
+
+        logger.log_event('info', f'{FILENAME} - {idx} Pusing Index to Redis')
+        asyncio.run(update_index(inverted_index))
+
+
+        logger.log_event('info', f'{FILENAME} - {idx} Pusing Data to Redis')
+        asyncio.run(batch_push_news_data(news_batch))
 
     logger.log_event('info', f'{FILENAME} - DONE')

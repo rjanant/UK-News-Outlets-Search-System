@@ -29,7 +29,7 @@ from module_new_data import (
 def get_list_of_pages(source="bbc", n_pages=1, outputdict='bbc_dict.csv'):
     list_pages = []
     if any([i in source for i in ["bbc", "telegraph", "gbnews"]]):
-        indices = list(range(50, n_pages))
+        indices = list(range(50, n_pages)) #1: 0-50, 2: 50-n_pages
         if "bbc" in source:
             indices.reverse()
             url_target = "https://www.bbc.com/sitemaps/https-sitemap-com-archive-{}.xml"
