@@ -144,4 +144,6 @@ class QueryExpander:
                 # Skip if the word is not in the vocabulary
                 pass
 
-        return " ".join(expanded_query_terms)
+        added_terms = [term for term in expanded_query_terms if term not in query_terms]
+
+        return " ".join(expanded_query_terms), added_terms
