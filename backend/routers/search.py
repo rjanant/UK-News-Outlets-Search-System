@@ -14,8 +14,8 @@ from utils.redis_utils import (
 )
 from utils.basetype import RedisKeys, RedisDocKeys
 from math import ceil
-from utils.spell_checker import SpellChecker
-from utils.query_suggestion import QuerySuggestion
+# from utils.spell_checker import SpellChecker
+# from utils.query_suggestion import QuerySuggestion
 from utils.constant import (
     MONOGRAM_PKL_PATH,
     STOP_WORDS_FILE_PATH,
@@ -178,37 +178,37 @@ async def tfidf_search(
     return ORJSONResponse(content=response)
 
 
-spell_checker = SpellChecker(dictionary_path=MONOGRAM_PKL_PATH)
+# spell_checker = SpellChecker(dictionary_path=MONOGRAM_PKL_PATH)
 
 
-@router.get("/spellcheck")
-async def spellcheck(
-    q: str = Query(..., description="Search query", min_length=1, max_length=1024)
-):
-    r"""
-    Spell checking the query string. Returns a corrected string.
-    ```
-        - q: query to search (Treat every word as a seperated term). must be a string.
-    ```
-    """
-    # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
-    return spell_checker.correct_query(q)
+# @router.get("/spellcheck")
+# async def spellcheck(
+#     q: str = Query(..., description="Search query", min_length=1, max_length=1024)
+# ):
+#     r"""
+#     Spell checking the query string. Returns a corrected string.
+#     ```
+#         - q: query to search (Treat every word as a seperated term). must be a string.
+#     ```
+#     """
+#     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
+#     return spell_checker.correct_query(q)
 
 
-query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
-query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
+# query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
+# query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
 
-@router.get("/suggest_query")
-async def spellcheck(
-    q: str = Query(
-        ..., description="Search query", min_length=1, max_length=1024, size=5
-    )
-):
-    r"""
-    Query suggestion for the query string. Returns a list of suggested strings.
-    ```
-        - q: query to search (Treat every word as a seperated term)
-    ```
-    """
-    # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
-    return query_suggestion.get_query_suggestions(q)
+# @router.get("/suggest_query")
+# async def spellcheck(
+#     q: str = Query(
+#         ..., description="Search query", min_length=1, max_length=1024, size=5
+#     )
+# ):
+#     r"""
+#     Query suggestion for the query string. Returns a list of suggested strings.
+#     ```
+#         - q: query to search (Treat every word as a seperated term)
+#     ```
+#     """
+#     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
+#     return query_suggestion.get_query_suggestions(q)

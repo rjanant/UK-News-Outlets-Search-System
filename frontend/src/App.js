@@ -12,7 +12,7 @@ import logoImage from './logo.png';
 function App() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [searchType, setSearchType] = useState('standard'); // 'standard' or 'boolean'
+    const [searchType, setSearchType] = useState('tfidf'); // 'standard' or 'boolean'
     let navigate = useNavigate();
 
     const handleSearchClick = async () => {
@@ -77,9 +77,9 @@ function App() {
                             onChange={(e) => setSearchType(e.target.value)}
                             style={{ maxWidth: '120px' }}
                         >
-                            <option value="standard">Standard</option>
-                            <option value="boolean">Boolean</option>
+                            {/* <option value="standard">Standard</option> */}
                             <option value="tfidf">TF-IDF</option>
+                            <option value="boolean">Boolean</option>
                         </select>
                         <Button variant="outline-secondary" onClick={handleSearchClick}>
                             <BsSearch />
