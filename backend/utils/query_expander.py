@@ -23,7 +23,7 @@ class QueryExpander:
         self.vectors = self.model.wv.vectors
 
     def create_all_document_csv(
-        self, outlet_folders: List[str], data_path: str, output_path: str
+        self, data_path: str, outlet_folders: List[str], output_path: str
     ) -> None:
         """
         Create a single CSV file containing all the articles from the given outlet folders.
