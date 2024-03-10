@@ -98,3 +98,22 @@ export const fetchSearchTfidf = async (query, page = 1, limit = 10) => {
     }
 };
 
+export const fetchQuerySuggestion = async (query) => {
+  try {
+    const url = `${BASE_URL}/search/suggest_query?q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Network response was not ok (status: ${response.status})`);
+    }
+    const data = await response.json();
+    return data; // Assuming the API wraps the results in a "results" key
+  } catch (error) {
+    console.error('There was a problem fetching the boolean search results:', error);
+    throw error;
+  }
+};
+
