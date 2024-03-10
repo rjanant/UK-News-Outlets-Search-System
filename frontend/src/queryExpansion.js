@@ -1,14 +1,14 @@
 // QueryExpansion.js
 import React, { useEffect, useState } from 'react';
-import { fetchQueryExpansions } from './api'; // Adjust the import path as necessary
+import { fetchQueryExpansions, fetchQuerySuggestion } from './api'; // Adjust the import path as necessary
 
 const QueryExpansion = ({ onQuerySelect }) => {
   const [expansions, setExpansions] = useState([]);
 
-//main function -> uncomment this to use the actual expansion
+// // main function -> uncomment this to use the actual expansion
 //   useEffect(() => {
 //     const getExpansions = async () => {
-//       const data = await fetchQueryExpansions();
+//       const data = await fetchQuerySuggestion(searchQuery.trim());
 //       setExpansions(data);
 //     };
 //     getExpansions();

@@ -20,7 +20,7 @@ MONOGRAM_AND_BIGRAM_DICTIONARY_PATH = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
         "spell_checking_and_autocomplete_files",
-        "monogram_and_bigram_dictionary.json",
+        "monogram_and_bigram_dictionary.data",
     )
 )
 

@@ -342,8 +342,8 @@ async def evaluate_boolean_query(
         exit()
 
 
-query_expander = QueryExpander()
-query_expander = QueryExpander(model_path="word2vec_files/word2vec_200_10.model")
+# query_expander = QueryExpander()
+# query_expander = QueryExpander(model_path="word2vec_files/word2vec_200_10.model")
 
 # TODO - show added terms in the interface
 async def evaluate_ranked_query(
@@ -355,8 +355,8 @@ async def evaluate_ranked_query(
     n_expand: int = 3,
 ) -> List[Tuple[int, float]]:
     # added_terms to add to the interface
-    if expand_query:
-        query, added_terms = query_expander.expand_query(query, top_n=n_expand)
+    # if expand_query:
+    #     query, added_terms = query_expander.expand_query(query, top_n=n_expand)
     words = get_preprocessed_words(query, stopping, stemming)
     doc_ids = set()
     word_freq = dict()

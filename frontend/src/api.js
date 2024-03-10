@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 
-// const BASE_URL = 'http://127.0.0.1:8080'; // Update with your backend URL
-const BASE_URL = 'https://ttds18-67d62zc6ua-ew.a.run.app'; // Update with your backend URL
+const BASE_URL = 'http://127.0.0.1:8080'; // Update with your backend URL
+// const BASE_URL = 'https://ttds18-67d62zc6ua-ew.a.run.app'; // Update with your backend URL
 
 export const fetchSearchResults = async (query, year, page = 1, limit = 10) => {
     // Remove empty parameters from the request
@@ -96,5 +96,24 @@ export const fetchSearchTfidf = async (query, page = 1, limit = 10) => {
       console.error('There was a problem fetching the TF-IDF search results:', error);
       throw error; // Re-throw the error so it can be caught and handled by the caller.
     }
+};
+
+export const fetchQuerySuggestion = async (query) => {
+  try {
+    const url = `${BASE_URL}/search/suggest_query?q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Network response was not ok (status: ${response.status})`);
+    }
+    const data = await response.json();
+    return data; // Assuming the API wraps the results in a "results" key
+  } catch (error) {
+    console.error('There was a problem fetching the boolean search results:', error);
+    throw error;
+  }
 };
 
