@@ -354,6 +354,7 @@ async def evaluate_ranked_query(
     expand_query: bool = True,
     n_expand: int = 3,
 ) -> List[Tuple[int, float]]:
+    # added_terms to add to the interface
     if expand_query:
         query, added_terms = query_expander.expand_query(query, top_n=n_expand)
     words = get_preprocessed_words(query, stopping, stemming)
