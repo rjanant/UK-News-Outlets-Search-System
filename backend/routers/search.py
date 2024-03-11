@@ -13,6 +13,8 @@ from utils.redis_utils import (
     check_cache_exists,
 )
 from utils.basetype import RedisKeys, RedisDocKeys
+#from ai.QE_Bert import expand_query
+from utils.roberta import expand_query
 from math import ceil
 from utils.spell_checker import SpellChecker
 from utils.query_suggestion import QuerySuggestion
@@ -27,7 +29,7 @@ router = APIRouter(
     prefix=f"/{basename(__file__).replace('.py', '')}",
     tags=[basename(__file__).replace(".py", "")],
     dependencies=[],
-    responses={404: {"description": "Not found"}},
+    responses={404: {"description": "Not found"}}
 )
 
 
@@ -43,19 +45,18 @@ async def search(
         None, description="Year of the result", ge=1900, le=2100
     ),
     page: Optional[int] = Query(1, description="Page number", ge=1),
-    limit: Optional[int] = Query(10, description="Results per page", ge=1, le=100),
-) -> SearchResponse:
-    r"""
+    limit: Optional[int] = Query(10, description="Results per page", ge=1, le=100)
+    ) -> SearchResponse:
+    r'''
     Searching the results from the database.
     ```
         - q: query to search
         - page: page number
         - limit: results per page
     ```
-    """
+    '''
     ## Search the results
-    return ORJSONResponse(content={"results": ["123213"], "truth_value": 0.0})
-
+    return ORJSONResponse(content={"results": ['123213'], "truth_value": 0.0})
 
 class TestBody(BaseModel):
     field: str = Field(..., description="Test field", min_length=1, max_length=1024)
@@ -83,7 +84,8 @@ async def boolean_search(
     """
 
     def pagination(results):
-        """Function to get a particular page"""
+        """Function to get a particular page
+        """
         response = {
             "results": results[0][(page - 1) * limit : page * limit],
             "total_pages": ceil(len(results[0]) / limit),
@@ -102,17 +104,13 @@ async def boolean_search(
 
     # uncomment this if the document info is ready
     for idx, doc_id_list in enumerate(results):
-        results[idx] = await get_docs_fields(
-            doc_id_list,
-            [
-                RedisDocKeys.title,
-                RedisDocKeys.url,
-                RedisDocKeys.source,
-                RedisDocKeys.date,
-                RedisDocKeys.sentiment,
-                RedisDocKeys.summary,
-            ],
-        )
+        results[idx] = await get_docs_fields(doc_id_list, 
+                                             [RedisDocKeys.title, 
+                                              RedisDocKeys.url, 
+                                              RedisDocKeys.source, 
+                                              RedisDocKeys.date, 
+                                              RedisDocKeys.sentiment, 
+                                              RedisDocKeys.summary])
 
     response = pagination(results)
     await caching_query_result("boolean", q, results)
@@ -152,29 +150,22 @@ async def tfidf_search(
 
     for idx, result in enumerate(results):
         doc_id_list = [t[0] for t in result]
-        doc_info_list = await get_docs_fields(
-            doc_id_list,
-            [
-                RedisDocKeys.title,
-                RedisDocKeys.url,
-                RedisDocKeys.source,
-                RedisDocKeys.date,
-                RedisDocKeys.sentiment,
-                RedisDocKeys.summary,
-                RedisDocKeys.topic,
-            ],
-        )
-        results[idx] = [
-            {"score": t[1], **doc_info_list[i]} for i, t in enumerate(result)
-        ]
-
-    if not results or len(results) > page * limit:
+        doc_info_list = await get_docs_fields(doc_id_list,
+                                                [RedisDocKeys.title, 
+                                                RedisDocKeys.url, 
+                                                RedisDocKeys.source, 
+                                                RedisDocKeys.date, 
+                                                RedisDocKeys.sentiment, 
+                                                RedisDocKeys.summary])
+        results[idx] = [{"score": t[1], **doc_info_list[i]} for i, t in enumerate(result)]
+        
+    if not results or len(results) > page*limit:
         return []
 
     response = pagination(results)
-
+    
     await caching_query_result("tfidf", q, results)
-
+    
     return ORJSONResponse(content=response)
 
 
@@ -195,20 +186,31 @@ async def spellcheck(
     return spell_checker.correct_query(q)
 
 
-query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
-query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
+# query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
+# query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
 
-@router.get("/suggest_query")
-async def spellcheck(
-    q: str = Query(
-        ..., description="Search query", min_length=1, max_length=1024, size=5
-    )
-):
-    r"""
-    Query suggestion for the query string. Returns a list of suggested strings.
-    ```
-        - q: query to search (Treat every word as a seperated term)
-    ```
-    """
-    # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
-    return query_suggestion.get_query_suggestions(q)
+# @router.get("/suggest_query")
+# async def suggestquery(
+#     q: str = Query(
+#         ..., description="Search query", min_length=1, max_length=1024, size=5
+#     )
+# ):
+#     r"""
+#     Query suggestion for the query string. Returns a list of suggested strings.
+#     ```
+#         - q: query to search (Treat every word as a seperated term)
+#     ```
+#     """
+#     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
+#     return query_suggestion.get_query_suggestions(q)
+
+class ExpansionQuery(BaseModel):  
+    query: str
+    num_expansions: int = 10  # Default value set to 10
+
+@router.post("/expand-query/")
+async def expand_query_api(query_data: ExpansionQuery):
+    
+
+    expanded_query = expand_query(query_data.query, query_data.num_expansions)
+    return ORJSONResponse(content={"expanded_queries": expanded_query})
