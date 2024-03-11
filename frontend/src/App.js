@@ -7,7 +7,9 @@ import BooleanResultsPage from './BooleanResultsPage';
 import TfidfResultsPage from './TfidfResultsPage';
 import ErrorPage from './ErrorPage';
 import HowItWorks from './HowItWorks';
-import { fetchSearchResults, fetchSearchBoolean, fetchSearchTfidf} from './api';
+import PrivacyPolicy from './PrivacyPolicy';
+import TermsOfService from './TermsOfService';
+import { fetchSearchResults, fetchSearchBoolean, fetchSearchTfidf } from './api';
 import BASE_URL from './api';
 import logoImage from './logo.png';
 import debounce from 'lodash.debounce';
@@ -151,14 +153,9 @@ function App() {
                 <Container>
                     © {new Date().getFullYear()} FactChecker - All Rights Reserved
                     <div>
-                        <a href="#privacy-policy">Privacy Policy</a> | <a href="#terms-of-service">Terms of Service</a>
+                    <a href="/privacy-policy">Privacy Policy</a> | <a href="/terms-of-service">Terms of Service</a>
                     </div>
-                    <div>
-                        Follow us: 
-                        <a href="#twitter" className="ms-2">Twitter</a> | 
-                        <a href="#facebook" className="ms-2">Facebook</a> | 
-                        <a href="#instagram" className="ms-2">Instagram</a>
-                    </div>
+                    
                 </Container>
             </footer>
         </>
@@ -175,6 +172,8 @@ function AppWrapper() {
                 <Route path="/TfidfResultsPage" element={<TfidfResultsPage />} /> {/* Add this line */}
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/error" element={<ErrorPage />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
             </Routes>
 
         </BrowserRouter>
