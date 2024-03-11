@@ -189,7 +189,7 @@ async def spellcheck(
 # query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
 # query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
 
-# @router.get("/suggest_query")
+# @router.post("/suggest_query")
 # async def suggestquery(
 #     q: str = Query(
 #         ..., description="Search query", min_length=1, max_length=1024, size=5
@@ -202,8 +202,24 @@ async def spellcheck(
 #     ```
 #     """
 #     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
-#     return query_suggestion.get_query_suggestions(q)
+#     suggestions =  query_suggestion.get_query_suggestions(q)
+#     return ORJSONResponse(content={"expanded_queries": suggestions})
 
+class ExpansionQuery(BaseModel):  
+    query: str
+    num_expansions: int = 10  # Default value set to 10
+
+# Query with bigram model
+# @router.post("/expand-query/")
+# async def expand_query_api(query_data: ExpansionQuery):
+    
+
+#     # expanded_query = expand_query(query_data.query, query_data.num_expansions)
+#     suggestions =  query_suggestion.get_query_suggestions(query_data.query)
+#     # return ORJSONResponse(content={"expanded_queries": expanded_query})
+#     return ORJSONResponse(content={"expanded_queries": suggestions})
+
+# Query Expansion with Roberta
 class ExpansionQuery(BaseModel):  
     query: str
     num_expansions: int = 10  # Default value set to 10
@@ -214,3 +230,5 @@ async def expand_query_api(query_data: ExpansionQuery):
 
     expanded_query = expand_query(query_data.query, query_data.num_expansions)
     return ORJSONResponse(content={"expanded_queries": expanded_query})
+    # return ORJSONResponse(content={"expanded_queries": ['test1', 'test2', 'test3']})
+
