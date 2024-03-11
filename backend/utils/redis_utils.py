@@ -195,7 +195,7 @@ async def set_news_data(article: NewsArticleData):
     doc_url = article.url
     doc_id = RedisKeys.document(article.doc_id)
     doc_date = article.date
-    doc_sentiment = 'neutral'
+    doc_sentiment = orjson.dumps([f"negative:0.0", f"neutral:1.0", f"positive:0.0"])
     doc_summary = ".".join(article.content.split('.')[:3])
     doc_source = article.url.split('.')[1]
     doc_topic = "-".join(article.url.split("/")[3:-1][:2])
