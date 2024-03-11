@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Container, InputGroup, FormControl, Button, Navbar, Nav } from 'react-bootstrap';
 import { BsSearch } from 'react-icons/bs';
@@ -9,12 +9,14 @@ import ErrorPage from './ErrorPage';
 import HowItWorks from './HowItWorks';
 import { fetchSearchResults, fetchSearchBoolean, fetchSearchTfidf } from './api';
 import logoImage from './logo.png';
+import debounce from 'lodash.debounce';
 
 function App() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searchType, setSearchType] = useState('tfidf'); // 'standard' or 'boolean'
     const [errorMessage, setErrorMessage] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
     let navigate = useNavigate();
 
     const handleSearchClick = async () => {
@@ -31,19 +33,52 @@ function App() {
           if (searchType === 'standard') {
             results = await fetchSearchResults(searchQuery.trim());
             navigate('/StandardResultsPage', { state: { searchResults: results, searchType: 'standard' } });
-        } else if (searchType === 'boolean') {
+          } else if (searchType === 'boolean') {
             results = await fetchSearchBoolean(searchQuery.trim());
-            navigate('/BooleanResultsPage', { state: { searchResults: results, searchType: 'boolean' } });
-        } else if (searchType === 'tfidf') { // Handle TF-IDF search
+            // Include the search query as a URL parameter
+            navigate(`/BooleanResultsPage?q=${encodeURIComponent(searchQuery.trim())}`, { state: { searchResults: results, searchType: 'boolean' } });
+          } else if (searchType === 'tfidf') { // Handle TF-IDF search
             results = await fetchSearchTfidf(searchQuery.trim());
-            navigate('/TfidfResultsPage', { state: { searchResults: results, searchType: 'tfidf' } });
+            navigate(`/TfidfResultsPage?q=${encodeURIComponent(searchQuery.trim())}`, { state: { searchResults: results, searchType: 'tfidf' } });
           }
         } catch (error) {
             console.error(`Error fetching ${searchType} search results:`, error);
             navigate('/error'); // Redirect to the error page
         }
       };
+      const fetchSuggestions = async (query) => {
+        if (!query.trim()) {
+          setSuggestions([]);
+          return;
+        }
       
+        try {
+          const response = await fetch(`http://127.0.0.1:8080/search/expand-query/`, { 
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: query, num_expansions: 5 }), // Adjust num_expansions as needed
+          });
+          const data = await response.json();
+          setSuggestions(data.expanded_queries);
+        } catch (error) {
+          console.error('Error fetching query suggestions:', error);
+          setSuggestions([]);
+        }
+      };
+      const debouncedFetchSuggestions = debounce(fetchSuggestions, 300);
+            const handleChange = (e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                debouncedFetchSuggestions(query);
+            };
+      // --> clean up the debounced function on unmount
+            useEffect(() => {
+            return () => {
+            debouncedFetchSuggestions.cancel();
+            };
+  }, []);
 
     return (
         <>
@@ -73,10 +108,9 @@ function App() {
                             placeholder="Search"
                             aria-label="Search"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            spellCheck="true" // Enable spell check here
-                            autoComplete='on' // Enable autocomplete here
-                            autoCorrect='on' // Enable auto correct here
+                            onChange={handleChange} // Updated to use the new handleChange function                            spellCheck="true" // Enable spell check here
+                            autoComplete='on' // Enabled autocomplete here
+                            autoCorrect='on' // Enabled auto correct here
                             
                         />
                         <select
@@ -93,6 +127,22 @@ function App() {
                             <BsSearch />
                         </Button>
                     </InputGroup>
+                    {suggestions.length > 0 && (
+    <ul className="list-group">
+      {suggestions.map((suggestion, index) => (
+        <li
+          key={index}
+          className="list-group-item list-group-item-action"
+          onClick={() => {
+            setSearchQuery(suggestion);
+            setSuggestions([]); // Clear suggestions after selection
+          }}
+        >
+          {suggestion}
+        </li>
+      ))}
+    </ul>
+  )}
                 </div>
             </Container>
 
