@@ -25,6 +25,7 @@ if __name__ == "__main__":
     logger.log_event("info", f"{FILENAME} - Start script")
 
     today = datetime.now()
+    # today = datetime(2024, 3, 9)
     today_str = today.strftime("%Y%m%d")
     today_str_dash = today.strftime("%Y-%m-%d")
 
@@ -38,6 +39,14 @@ if __name__ == "__main__":
         outputname = f.replace('data_', 'summary_').replace('.csv', '.json')
 
         outputpath = os.path.join(folder_path, outputname)
+
+        if os.path.exists(outputpath):
+            # skip if the index does exist
+            with open(outputpath, "rb") as file:
+                results = orjson.loads(file.read())
+                logger.log_event("info", f"{FILENAME} - {idx} Updating the data on Redis")
+                asyncio.run(do_gather_task_push_value(results, RedisDocKeys.summary, func_summary))
+            continue
 
         logger.log_event("info", f"{FILENAME} - {idx} Generating the summary")
         results = get_summaries_of_csv_file(

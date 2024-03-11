@@ -103,6 +103,7 @@ if __name__ == "__main__":
     logger = Logger(logpath)
 
     today = datetime.now()
+    # today = datetime(2024, 3, 9)
     today_str = today.strftime("%Y%m%d")
     today_str_dash = today.strftime("%Y-%m-%d")
     folder_path = os.path.join(UTILPATH, "data", today_str)
@@ -112,7 +113,6 @@ if __name__ == "__main__":
 
     # inputfile = os.path.join(folder_path, f"data_{today_str}.csv")
 
-
     for idx, f in tqdm(enumerate(files)):
         inputfile = os.path.join(folder_path, f)
         indexpath = f"data/{today_str}"
@@ -121,8 +121,13 @@ if __name__ == "__main__":
         outputfile = os.path.join(folder_path, indexname)
         if os.path.exists(outputfile):
             # skip if the index does exist
+            # with open(outputfile, "rb") as file:
+            #     sentiment_dictionary = orjson.loads(file.read())
+            #     # file.write(orjson.dumps(sentiment_dictionary))
+            # logger.log_event('info', f'{FILENAME} - {idx} Updating the sentiment on Redis')
+            # asyncio.run(do_gather_task_push_value(sentiment_dictionary, RedisDocKeys.sentiment, func_sentiment))
             continue
-
+        print("No Thanks")
 
         logger.log_event('info', f'{FILENAME} - {idx} Start script')
         sentiment_dictionary = {}

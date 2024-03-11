@@ -1,6 +1,7 @@
 import pandas as pd
 import os, sys
 import asyncio
+import orjson
 
 from tqdm import tqdm
 
@@ -14,7 +15,7 @@ sys.path.append(UTILPATH)
 
 from basetype import NewsArticlesFragment, NewsArticleData, NewsArticlesBatch
 from build_index import positional_inverted_index, encode_index, save_json_file
-from redis_utils import update_index, batch_push_news_data
+from redis_utils import update_index, batch_push_news_data, get_doc_size
 from common import Logger
 
 
@@ -66,34 +67,40 @@ if __name__ == "__main__":
     files = os.listdir(folder_path)
     files = [i for i in files if f'data_{today_str}' in i]
     # inputfile = os.path.join(folder_path, f"data_{today_str}.csv")
+    start_doc_size = asyncio.run(get_doc_size())
+
+    logger.log_event('info', f'{FILENAME} - Start Doc Size: {start_doc_size}')
     for idx, f in tqdm(enumerate(files)):
         inputfile = os.path.join(folder_path, f)
         indexpath = f"data/{today_str}"
-        indexname = f.replace('data_', 'index_').replace('.csv', '.json')
+        indexname = f.replace('data_', 'index_2_').replace('.csv', '.json')
 
         indexpathfile = os.path.join(folder_path, indexname)
+
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Loading Data')
+        news_batch = load_data(inputfile, today_str_dash)
+
         if os.path.exists(indexpathfile):
             # skip if the index does exist
             continue
 
-
-        logger.log_event('info', f'{FILENAME} - {idx} Loading Data')
-        news_batch = load_data(inputfile, today_str_dash)
-
-        logger.log_event('info', f'{FILENAME} - {idx} Creating Index')
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Creating Index')
         inverted_index = positional_inverted_index(news_batch)
 
-        logger.log_event('info', f'{FILENAME} - {idx} Encoding')
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Encoding')
         encode_index(inverted_index)
 
-        logger.log_event('info', f'{FILENAME} - {idx} Saving JSON File')
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Saving JSON File')
         save_json_file(indexname, inverted_index.model_dump(), indexpath)
 
-        logger.log_event('info', f'{FILENAME} - {idx} Pusing Index to Redis')
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Pusing Index to Redis')
         asyncio.run(update_index(inverted_index))
 
 
-        logger.log_event('info', f'{FILENAME} - {idx} Pusing Data to Redis')
+        logger.log_event('info', f'{FILENAME} - {idx} - {f} Pusing Data to Redis')
         asyncio.run(batch_push_news_data(news_batch))
+
+        updated_doc_size = asyncio.run(get_doc_size())
+        logger.log_event('info', f'{FILENAME} - New Doc Size: {updated_doc_size}')
 
     logger.log_event('info', f'{FILENAME} - DONE')
