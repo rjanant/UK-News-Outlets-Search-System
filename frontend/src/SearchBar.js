@@ -11,9 +11,10 @@ import debounce from "lodash.debounce";
 
 function SearchBar() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState("tfidf");
+  const [searchType, setSearchType] = useState("tfidf" || "boolean");
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [validQuery, setValidQuery] = useState(true);
 
   const handleSearchClick = async () => {
     setErrorMessage("");
@@ -58,12 +59,37 @@ function SearchBar() {
     setSearchQuery(query);
     debouncedFetchSuggestions(query);
   };
+
   // --> clean up the debounced function on unmount
   useEffect(() => {
     return () => {
       debouncedFetchSuggestions.cancel();
     };
   }, []);
+
+  const checkQuery = async (query) => {
+    if (!query.trim()) {
+      return;
+    }
+    
+    if (searchType === "boolean") {
+      const response = await fetch(`${BASE_URL}/search/validate-boolean-query?q=${query}`);
+      // cast true or false to boolean
+      const data = await response.json();
+      setValidQuery(data);
+      return;
+    } else if (searchType === "tfidf") {
+      setValidQuery(true);
+    }
+  }
+
+  const debounceCheckQuery = debounce(checkQuery, 300);
+  useEffect(() => {
+    debounceCheckQuery(searchQuery);
+    return () => {
+      debounceCheckQuery.cancel();
+    };
+  }, [searchQuery, searchType]);
 
   return (
     <>
@@ -90,10 +116,13 @@ function SearchBar() {
           <option value="tfidf">TF-IDF</option>
           <option value="boolean">Boolean</option>
         </select>
-        <Button variant="outline-secondary" onClick={handleSearchClick}>
+        <Button variant="outline-secondary" onClick={handleSearchClick} disabled={!validQuery || !searchQuery.trim()}>
           <BsSearch />
         </Button>
       </InputGroup>
+      <div style={{ color: "red", marginBottom: "10px" }}>
+        {!validQuery && "Invalid query"}
+      </div>
       {suggestions.length > 0 && (
         <ul className="list-group">
           {suggestions.map((suggestion, index) => (

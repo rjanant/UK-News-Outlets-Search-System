@@ -21,20 +21,10 @@ redis_async_connection = {
 redis_connection = None 
 redis_config = None
 
-def get_redis_config(env="prod", is_async=True, db=0):
-    # pip install python-dotenv
-    from dotenv import load_dotenv
-
-    if env == "dev":
-        cfg_path = os.path.join(BASEPATH, "redis_config_dev.env")
-    else:
-        cfg_path = os.path.join(BASEPATH, "redis_config_prod.env")
-
-    load_dotenv(cfg_path)
-
-    REDIS_HOST = os.environ.get("REDIS_HOST") or os.getenv("REDIS_HOST")
-    REDIS_PORT = os.environ.get("REDIS_PORT") or os.getenv("REDIS_PORT")
-    REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD") or os.getenv("REDIS_PASSWORD")
+def get_redis_config(is_async=True, db=0):
+    REDIS_HOST = os.getenv("REDIS_HOST")
+    REDIS_PORT =  os.getenv("REDIS_PORT")
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
     if is_async:
         config_redis = {'address': (REDIS_HOST, REDIS_PORT), "password": REDIS_PASSWORD, "db":db}

@@ -67,6 +67,11 @@ function ResultsPage() {
     searchRoutine(searchParams);
   }, []);
 
+  const isBooleanSearch = () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get("type") === "boolean";
+  };
+
   const handlePageChange = (page) => {
     const searchParams = new URLSearchParams(window.location.search);
     searchParams.set("page", page);
@@ -118,9 +123,15 @@ function ResultsPage() {
 
     const meetsSentimentCriteria =
       sentimentFilter === "all" ||
-      (sentimentFilter === "positive" && positive > neutral && positive > negative) ||
-      (sentimentFilter === "neutral" && neutral > positive && neutral > negative) ||
-      (sentimentFilter === "negative" && negative > positive && negative > neutral);
+      (sentimentFilter === "positive" &&
+        positive > neutral &&
+        positive > negative) ||
+      (sentimentFilter === "neutral" &&
+        neutral > positive &&
+        neutral > negative) ||
+      (sentimentFilter === "negative" &&
+        negative > positive &&
+        negative > neutral);
     if (!meetsSentimentCriteria) return false;
 
     return true;
@@ -165,10 +176,13 @@ function ResultsPage() {
           <SearchBar />
         </div>
       </Container>
-      <QueryExpansion
-        onQuerySelect={handleQueryExpansionSelect}
-        currentQuery={searchQuery}
-      />
+      {/* disable when type is boolean */}
+      {!isBooleanSearch && (
+        <QueryExpansion
+          onQuerySelect={handleQueryExpansionSelect}
+          currentQuery={searchQuery}
+        />
+      )}
 
       <Container>
         <Row>
