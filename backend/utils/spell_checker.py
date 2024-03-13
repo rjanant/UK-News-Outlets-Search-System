@@ -72,7 +72,7 @@ class SpellChecker:
                             print(f"Skipping article {doc_id_series[index]} due to error: {e}")
 
     def create_and_save_spellcheck_dictionary(
-        self, corpus_txt_path: str, output_dictionary_path: str
+        self, corpus_txt_path: str, output_dictionary_path: str, save_more_frequent_than: int = 1,
     ) -> None:
         """
         Create and save a SymSpell dictionary from a corpus.

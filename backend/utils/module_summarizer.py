@@ -157,15 +157,16 @@ def process_directories_and_write_summary_dictionary(
     return summaries_dictionary
 
 
-# if __name__ == "__main__":
-#     data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data"
-#     outlet_folders = ["tele"]
-#     output_file_path = "summaries_files/summaries.json"
+if __name__ == "__main__":
+    data_path = "C:/Users/Asus/Desktop/ttds-proj/backend/data"
+    # outlet_folders = ["tele"]
+    outlet_folders = ["bbc_new"]
+    output_file_path = "summaries_files/summaries_2.json"
 
-#     process_directories_and_write_summary_dictionary(
-#         data_path,
-#         outlet_folders,
-#         output_file_path,
-#         summaries_dictionary=None,
-#         number_of_initial_sentences_to_skip=2,
-#     )
+    process_directories_and_write_summary_dictionary(
+        data_path,
+        outlet_folders,
+        output_file_path,
+        summaries_dictionary=None,
+        number_of_initial_sentences_to_skip=2,
+    )
