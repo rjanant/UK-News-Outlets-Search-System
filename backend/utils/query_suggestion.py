@@ -14,7 +14,7 @@ from collections import Counter
 import orjson
 from typing import List
 
-from utils.constant import (
+from constant import (
     STOP_WORDS_FILE_PATH,
     MONOGRAM_PKL_PATH,
     MONOGRAM_AND_BIGRAM_DICTIONARY_PATH,

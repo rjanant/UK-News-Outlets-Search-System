@@ -60,19 +60,57 @@ class SpellChecker:
                                 file.write(article + "\n")
                             file_mode = "a"
                         except TypeError as te:
-                            if "unsupported operand type(s) for +: 'float' and 'str'" in str(te):
+                            if (
+                                "unsupported operand type(s) for +: 'float' and 'str'"
+                                in str(te)
+                            ):
                                 # If the specific TypeError is caught, you might want to handle it differently
                                 # or simply pass to ignore it.
                                 pass
                             else:
                                 # Handle other TypeErrors that are not about concatenating float with str
-                                print(f"Skipping article {doc_id_series[index]} due to TypeError: {te}")
+                                print(
+                                    f"Skipping article {doc_id_series[index]} due to TypeError: {te}"
+                                )
                         except Exception as e:
                             # This catches all other exceptions and prints the error message.
-                            print(f"Skipping article {doc_id_series[index]} due to error: {e}")
+                            print(
+                                f"Skipping article {doc_id_series[index]} due to error: {e}"
+                            )
+
+    def create_filtered_corpus(
+        self, corpus_txt_path, filtered_corpus_path, min_frequency
+    ):
+        """Create a new corpus file with words having a minimum frequency."""
+        print("Reading corpus file...")
+        with open(corpus_txt_path, "r", encoding="utf-8") as file:
+            corpus = file.read().lower()
+        print("Tokenizing corpus...")
+        words = re.findall(r"\w+", corpus)
+
+        print("Counting word frequencies...")
+        word_counts = Counter(words)
+
+        # Initialize tqdm progress bar
+        tqdm.pandas()
+
+        # Filter words by frequency using tqdm for progress indication
+        filtered_words = [
+            word
+            for word in tqdm(words, desc="Filtering words")
+            if word_counts[word] > min_frequency
+        ]
+
+        # Save filtered corpus with progress indication
+        with open(filtered_corpus_path, "w", encoding="utf-8") as file:
+            for word in tqdm(filtered_words, desc="Writing filtered corpus"):
+                file.write(f"{word} ")
 
     def create_and_save_spellcheck_dictionary(
-        self, corpus_txt_path: str, output_dictionary_path: str, save_more_frequent_than: int = 1,
+        self,
+        corpus_txt_path: str,
+        output_dictionary_path: str,
+        save_more_frequent_than: int = 1,
     ) -> None:
         """
         Create and save a SymSpell dictionary from a corpus.
@@ -161,9 +199,13 @@ def norvig_correction(word):
 
 #     # create_spell_checking_txt(data_path, outlet_folders, output_corpus_path)
 
+#    # filtered_corpus_path = "C:/Users/Asus/Desktop/ttds-proj/backend/utils/filtered_corpus.txt"
+
+#     # create_filtered_corpus(corpus_path, filtered_corpus_path, 100)
+
 #     # output_dictionary_path = "C:/Users/Asus/Desktop/ttds-proj/backend/utils/symspell_dictionary.pkl"
 
-#     # create_spell_checker_dictionary(corpus_path, output_dictionary_path)
+#     # create_spell_checker_dictionary(filtered_corpus_path, output_dictionary_path)
 
 #     # pickle_file_path = "spell_checking_files/huge_symspell_dictionary.pkl"
 #     # symspell_instance = load_sym_spell_instance("pickle_file_path")
