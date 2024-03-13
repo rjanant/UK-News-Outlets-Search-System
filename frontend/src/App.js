@@ -16,7 +16,7 @@ function App() {
         <>
             <Navbar bg="light" expand="lg">
                 <Container>
-                    <Navbar.Brand as={Link} to="/">FactChecker</Navbar.Brand>
+                    <Navbar.Brand as={Link} to="/">BritPress Navigator</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
@@ -31,7 +31,7 @@ function App() {
 
             <footer className="text-center bg-light py-3">
                 <Container>
-                    © {new Date().getFullYear()} FactChecker - All Rights Reserved
+                    © {new Date().getFullYear()} BritPress Navigator - All Rights Reserved
                     <div>
                     <a href="/privacy-policy">Privacy Policy</a> | <a href="/terms-of-service">Terms of Service</a>
                     </div>

@@ -8,7 +8,7 @@ function HowItWorks() {
         <>
             <Navbar bg="light" expand="lg">
                 <Container>
-                    <Navbar.Brand as={Link} to="/">FactChecker</Navbar.Brand>
+                    <Navbar.Brand as={Link} to="/">BritPress Navigator</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
@@ -86,7 +86,7 @@ function HowItWorks() {
                         <Card className="mb-3" border="light">
                             <Card.Body>
                                 <Card.Title> Unique Features</Card.Title>
-                                <Card.Text>FactChecker is more than just a search engine. It integrates a summarizer for quick understanding, spell checking, and autocomplete features, as well as sentiment analysis, all built on a solid infrastructure that leverages Redis for caching and robust index management for performance.</Card.Text>
+                                <Card.Text>BritPress Navigator is more than just a search engine. It integrates a summarizer for quick understanding, spell checking, and autocomplete features, as well as sentiment analysis, all built on a solid infrastructure that leverages Redis for caching and robust index management for performance.</Card.Text>
                             </Card.Body>
                         </Card>
                     
@@ -99,7 +99,7 @@ function HowItWorks() {
                         </Card>
 
 
-                        <p>We believe in empowering our users with the tools to discern the truth. Experience the difference with FactChecker now.</p>
+                        <p>We believe in empowering our users with the tools to discern the truth. Experience the difference with BritPress Navigator now.</p>
                     </Col>
                 </Row>
             </Container>
