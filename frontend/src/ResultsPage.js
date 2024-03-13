@@ -31,13 +31,14 @@ function ResultsPage() {
   const [totalPage, setTotalPage] = useState(1);
   const [useTime, setUseTime] = useState(0);
   const [scores, setScores] = useState([]);
-
+  const [type, setType] = useState("tfidf" || "boolean");
   const maxPagesToShow = 5;
 
   function searchRoutine(searchParams) {
     const params = Object.fromEntries(searchParams.entries());
     const query = params.q;
     const type = params.type || "tfidf";
+    setType(type);
     const page = parseInt(params.page) || 1;
 
     if (!query) {
@@ -66,11 +67,6 @@ function ResultsPage() {
     const searchParams = new URLSearchParams(window.location.search);
     searchRoutine(searchParams);
   }, []);
-
-  const isBooleanSearch = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get("type") === "boolean";
-  };
 
   const handlePageChange = (page) => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -177,12 +173,12 @@ function ResultsPage() {
         </div>
       </Container>
       {/* disable when type is boolean */}
-      {!isBooleanSearch && (
+      {type !== "boolean" &&
         <QueryExpansion
           onQuerySelect={handleQueryExpansionSelect}
           currentQuery={searchQuery}
         />
-      )}
+      }
 
       <Container>
         <Row>
