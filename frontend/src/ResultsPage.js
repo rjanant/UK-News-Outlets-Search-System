@@ -202,7 +202,7 @@ function ResultsPage() {
 
       {!loading && expansionTerms.length > 0 && (
         <div className="d-flex justify-content-center align-items-center mb-3">
-          <h6>Expanded query: {expansionTerms.join(", ")}</h6>
+          <h6 style={{fontWeight: 800}}>Expanded query: {expansionTerms.join(", ")}</h6>
         </div>
       )}
 

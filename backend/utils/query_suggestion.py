@@ -1279,9 +1279,9 @@ class QuerySuggestion:
             # if yes, get the last word
             string_to_suggest_off = query.split()[-1]
             prefix = " ".join(query.split()[:-1])
-            print("\nNo suggestions found for two words. Trying with a word.")
-            print("New prefix", prefix)
-            print("New to suggest off:", string_to_suggest_off, "\n")
+            # print("\nNo suggestions found for two words. Trying with a word.")
+            # print("New prefix", prefix)
+            # print("New to suggest off:", string_to_suggest_off, "\n")
             answer = self.search(word=(string_to_suggest_off), size=5)
         
         answer_list = self.modify_lists_allow_first_repeat(answer)
