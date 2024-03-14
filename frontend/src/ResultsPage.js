@@ -46,7 +46,7 @@ function ResultsPage() {
     } else {
       let startTime = Date.now();
       setSearchQuery(query);
-      if (expansions > 0) {
+      if (expansions > 0 && type !== "boolean") {
         fetchQueryExpansions(query, expansions)
           .then((res) => {
             console.log(res);

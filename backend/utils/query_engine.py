@@ -299,14 +299,14 @@ async def evaluate_boolean_query(
 ) -> List:
     # query = " ".join([token.lower() if token not in ["AND", "OR", "NOT"] else token for token in query.split("\w+ ")])
     query = re.sub(r"(\w+)", lambda x: preprocess_match(x, stopping, stemming), query)
-    print(query)
+    # print(query)
     if not is_valid_query(query):
         print("Invalid query: ", query)
         return []
 
     postfix = infix_to_postfix(query, special_patterns["spliter"])
 
-    print("postfix", postfix)
+    # print("postfix", postfix)
 
     # evalute the value for the stuff first
     results = []
@@ -365,12 +365,12 @@ async def evaluate_ranked_query(
     start_time = time.time()
     for doc_id in doc_ids:
         score_results.append(calculate_tf_idf(words, doc_id, docs_size, tfs, doc_freq))
-    print("Time taken to calculate tfidf scores", time.time() - start_time)
+    # print("Time taken to calculate tfidf scores", time.time() - start_time)
     
     start_time = time.time()
     for idx, doc_id in enumerate(doc_ids):
         scores.append((doc_id, score_results[idx]))
-    print("Time taken to process ranked query", time.time() - start_time)
+    # print("Time taken to process ranked query", time.time() - start_time)
     
     # sort by the score and the doc_id
     start_time = time.time()
@@ -384,7 +384,7 @@ async def evaluate_ranked_query(
     # else:
     scores = sorted(scores, key=lambda x: (-x[1]))
     
-    print("Time taken to sort the scores", time.time() - start_time)
+    # print("Time taken to sort the scores", time.time() - start_time)
 
     return scores
 
@@ -397,9 +397,7 @@ async def boolean_test(
     results = []
     for query in boolean_queries:
         results.append(await evaluate_boolean_query(query, doc_ids_list))
-    print(
-        "Time taken to process boolean queries", time.time() - start_time, len(results[0])
-    )
+    # print("Time taken to process boolean queries", time.time() - start_time, len(results[0]))
     return results
 
 
@@ -411,11 +409,7 @@ async def ranked_test(
     results = []
     for query in ranked_queries:
         results.append(await evaluate_ranked_query(query, doc_size))
-    print(
-        "Time taken to process ranked queries",
-        time.time() - start_time,
-        len(results[0]),
-    )
+    # print("Time taken to process ranked queries",time.time() - start_time,len(results[0]),)
     return results
 
 

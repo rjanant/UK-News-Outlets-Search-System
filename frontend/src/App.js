@@ -47,7 +47,7 @@ function AppWrapper() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<App />} />
-                <Route path="/search" element={< ResultsPage />} />
+                <Route path="/search-results" element={< ResultsPage />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/error" element={<ErrorPage />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

@@ -30,8 +30,12 @@ function SearchBar() {
     params.append("type", searchType);
     params.append("limit", 10);
     params.append("page", 1);
-    params.append("expansions", numOfExpansions);
-    window.location.href = `/search?${params.toString()}`;
+    
+    if (searchType !== "boolean") {
+      params.append("expansions", numOfExpansions);
+    }
+
+    window.location.href = `/search-results?${params.toString()}`;
   };
   const fetchSuggestions = async (query) => {
     if (!query.trim()) {

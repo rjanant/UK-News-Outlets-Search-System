@@ -98,7 +98,7 @@ class QueryExpander:
             vector_size=vector_size,
             window=window_size,
             min_count=1,
-            workers=os.cpu_count() - 2,
+            workers=min(1, os.cpu_count() - 2),
         )
 
         model.save(
