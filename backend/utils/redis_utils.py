@@ -4,7 +4,6 @@ import os
 import asyncio
 import aioredis
 import time
-import psutil
 from tqdm import tqdm
 from typing import Tuple
 from basetype import InvertedIndex, RedisKeys, RedisDocKeys, NewsArticleData
