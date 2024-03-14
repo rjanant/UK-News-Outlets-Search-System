@@ -124,6 +124,20 @@ async def get_doc_ids_from_pattern(pattern: str) -> List[int]:
 def negate_doc_ids(doc_ids: List[int], doc_ids_list: List[int]) -> List[int]:
     return list(set(doc_ids_list) - set(doc_ids))
 
+async def process_doc_id(doc_id, values, n):
+    try:
+        positions_for_w1 = delta_decode_list(values[0][str(doc_id)])
+        positions_for_w2 = delta_decode_list(values[1][str(doc_id)])
+        if any(
+            [
+                abs(pos1 - pos2) <= int(n)
+                for pos1 in positions_for_w1
+                for pos2 in positions_for_w2
+            ]
+        ):
+            return int(doc_id)
+    except:
+        pass
 
 async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
     # find all the doc_ids for w1 and w2
@@ -131,23 +145,9 @@ async def evaluate_proximity_pattern(n: int, w1: str, w2: str) -> List[int]:
     # find the doc_ids that satisfy the condition
     doc_ids = []
     values = await get_json_values([RedisKeys.index(w1), RedisKeys.index(w2)])
-
-    async def process_doc_id(doc_id):
-        try:
-            positions_for_w1 = delta_decode_list(values[0][doc_id])
-            positions_for_w2 = delta_decode_list(values[1][doc_id])
-            if any(
-                [
-                    abs(pos1 - pos2) <= int(n)
-                    for pos1 in positions_for_w1
-                    for pos2 in positions_for_w2
-                ]
-            ):
-                return int(doc_id)
-        except:
-            pass
-
-    tasks = [process_doc_id(doc_id) for doc_id in doc_ids_for_w1]
+    tasks = []
+    for doc_id in doc_ids_for_w1:
+        tasks.append(process_doc_id(doc_id, values, n))
     results = await asyncio.gather(*tasks)
     doc_ids = [result for result in results if result is not None]
     return doc_ids
@@ -214,7 +214,7 @@ def is_operator(token: str) -> bool:
     return token in ["AND", "OR", "NOT"]
 
 
-def infix_to_postfix(query: str, spliter: re.Pattern) -> list:
+def infix_to_postfix(query: str, spliter: re.Pattern) -> List[str]:
     tokens = re.findall(spliter, query)
     stack = []
     postfix = []
@@ -305,7 +305,6 @@ async def evaluate_boolean_query(
         return []
 
     postfix = infix_to_postfix(query, special_patterns["spliter"])
-
     # print("postfix", postfix)
 
     # evalute the value for the stuff first
@@ -362,18 +361,13 @@ async def evaluate_ranked_query(
     
     scores = []
     score_results = []
-    start_time = time.time()
     for doc_id in doc_ids:
         score_results.append(calculate_tf_idf(words, doc_id, docs_size, tfs, doc_freq))
-    # print("Time taken to calculate tfidf scores", time.time() - start_time)
     
-    start_time = time.time()
     for idx, doc_id in enumerate(doc_ids):
         scores.append((doc_id, score_results[idx]))
-    # print("Time taken to process ranked query", time.time() - start_time)
     
     # sort by the score and the doc_id
-    start_time = time.time()
     # scores.sort(key=lambda x: (-x[1], x[0]))
     # scores = sorted(scores, key=lambda x: (-x[1], x[0])
 
@@ -384,20 +378,16 @@ async def evaluate_ranked_query(
     # else:
     scores = sorted(scores, key=lambda x: (-x[1]))
     
-    # print("Time taken to sort the scores", time.time() - start_time)
-
     return scores
 
 
 async def boolean_test(
-    boolean_queries: List[str] = ['"Comic Relief" AND (NOT wtf OR #1(Comic, Relief))'],
+    boolean_queries: List[str] = ["\"Comic Relief\" AND (NOT wtf OR #1(Comic, Relief))"],
 ) -> List[List[int]]:
     doc_ids_list = await get_doc_ids_list()
-    start_time = time.time()
     results = []
     for query in boolean_queries:
         results.append(await evaluate_boolean_query(query, doc_ids_list))
-    # print("Time taken to process boolean queries", time.time() - start_time, len(results[0]))
     return results
 
 
@@ -405,17 +395,15 @@ async def ranked_test(
     ranked_queries: List[str] = ["Comic Relief"],
 ) -> List[List[Tuple[int, float]]]:
     doc_size = await get_tfidf_doc_size()
-    start_time = time.time()
     results = []
     for query in ranked_queries:
         results.append(await evaluate_ranked_query(query, doc_size))
-    # print("Time taken to process ranked queries",time.time() - start_time,len(results[0]),)
     return results
 
 
 async def main():
-    # await boolean_test(["Biden"])
-    await ranked_test(["Donald Trump and Biden in 2024 USA"])
+    print(await boolean_test(["#1(united, kingdom)"]))
+    # await ranked_test(["Donald Trump and Biden in 2024 USA"])
 
     #### BENCHMARKING
     # result = await ranked_test()
