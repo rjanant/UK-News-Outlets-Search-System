@@ -10,11 +10,11 @@ Last updated: 11th March 2024
 
 ## Introduction
 
-At FactChecker, we respect the privacy of our users. Our service is designed to enrich your online experience without compromising your personal data.
+At BritPress Navigator, we respect the privacy of our users. Our service is designed to enrich your online experience without compromising your personal data.
 
 ## Information We Collect
 
-FactChecker is structured to not collect any personal identifying information (PII). We collect data related to website links and necessary information to facilitate the functionality of our services.
+BritPress Navigator is structured to not collect any personal identifying information (PII). We collect data related to website links and necessary information to facilitate the functionality of our services.
 
 - **Website Data:** We collect information about websites, including links and metadata, to provide our services.
 - **Cookies:** If we use cookies, they are to maintain session integrity and enhance user experience. We do not use cookies to track personal information.
@@ -48,7 +48,7 @@ function PrivacyPolicy() {
         <>
             <Navbar bg="light" expand="lg">
                 <Container>
-                    <Navbar.Brand as={Link} to="/">FactChecker</Navbar.Brand>
+                    <Navbar.Brand as={Link} to="/">BritPress Navigator</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
