@@ -257,8 +257,28 @@ async def query_expansion(
 class ExpansionQuery(BaseModel):  
     query: str
     num_expansions: int = 10  # Default value set to 10
-@router.post("/expand-query/")
-async def expand_query_api(query_data: ExpansionQuery):
-    expanded_query = expand_query(query_data.query, query_data.num_expansions)
-    return ORJSONResponse(content={"expanded_queries": expanded_query})
 
+# @router.post("/expand-query/")
+# async def expand_query_api(query_data: ExpansionQuery):
+    
+
+#     expanded_query = expand_query(query_data.query, query_data.num_expansions)
+#     return ORJSONResponse(content={"expanded_queries": expanded_query})
+
+
+# query suggestion with bigram bk trees
+query_suggestion = QuerySuggestion(monogram_pkl_path=MONOGRAM_PKL_PATH)
+query_suggestion.load_words(words_path=MONOGRAM_AND_BIGRAM_DICTIONARY_PATH)
+
+# this is not query expansion, but SUGGESTION, but leaving it like this in order 
+# to not break the frontend
+@router.post("/expand-query/")
+async def suggest_query_api(query_data: ExpansionQuery):
+    """
+    Query suggestion for the query string. Returns a list of suggested strings.
+    ```
+        - q: query to search (string)
+    ```
+    """
+    suggestions =  query_suggestion.get_query_suggestions(query_data.query)
+    return ORJSONResponse(content={"expanded_queries": suggestions})
