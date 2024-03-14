@@ -79,7 +79,7 @@ function SearchBar() {
     }
     
     if (searchType === "boolean") {
-      const response = await fetch(`${BASE_URL}/search/validate-boolean-query?q=${query}`);
+      const response = await fetch(`${BASE_URL}/search/validate-boolean-query?q=${encodeURIComponent(query)}`);
       // cast true or false to boolean
       const data = await response.json();
       setValidQuery(data);
