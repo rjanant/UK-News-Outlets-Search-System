@@ -195,8 +195,5 @@ backend/utils/spell_checking_and_autocomplete_files/filtered_symspell_dictionary
 backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
 backend/utils/summaries_files/summaries_2.json
 backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
-backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
-backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
-backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
+
 backend/utils/roberta.py
-backend/utils/spell_checking_and_autocomplete_files/symspell_dictionary.pkl
