@@ -15,6 +15,7 @@ function SearchBar() {
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [validQuery, setValidQuery] = useState(true);
+  const [numOfExpansions, setNumOfExpansions] = useState(3);
 
   const handleSearchClick = async () => {
     setErrorMessage("");
@@ -29,6 +30,7 @@ function SearchBar() {
     params.append("type", searchType);
     params.append("limit", 10);
     params.append("page", 1);
+    params.append("expansions", numOfExpansions);
     window.location.href = `/search?${params.toString()}`;
   };
   const fetchSuggestions = async (query) => {
@@ -119,6 +121,14 @@ function SearchBar() {
         <Button variant="outline-secondary" onClick={handleSearchClick} disabled={!validQuery || !searchQuery.trim()}>
           <BsSearch />
         </Button>
+        {/* input for integer for query expansion terms */}
+        { searchType === "tfidf" && 
+        <FormControl
+          type="number"
+          value={numOfExpansions}
+          onChange={(e) => setNumOfExpansions(e.target.value)}
+          style={{ maxWidth: "60px" }}
+        /> }
       </InputGroup>
       <div style={{ color: "red", marginBottom: "10px" }}>
         {!validQuery && "Invalid query"}

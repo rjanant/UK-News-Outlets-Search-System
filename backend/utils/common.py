@@ -77,6 +77,10 @@ def get_preprocessed_words(
     content: str, stopping: bool = True, stemming: bool = True
 ) -> list:
     tokens = tokenize(content)
+    # remove the phrase that does not contain any english characters or digits
+    for token in tokens:
+        if not re.search(r"[a-zA-Z0-9]", token):
+            tokens.remove(token)
     tokens = [token.lower() for token in tokens]
     if stopping:
         tokens = remove_stop_words(tokens)

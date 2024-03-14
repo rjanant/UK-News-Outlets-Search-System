@@ -4,10 +4,13 @@ import os
 import asyncio
 import aioredis
 import time
+import psutil
 from tqdm import tqdm
+from typing import Tuple
 from basetype import InvertedIndex, RedisKeys, RedisDocKeys, NewsArticleData
-from typing import List
-from typing import Dict
+from typing import List, Dict
+from dotenv import load_dotenv
+from constant import PROJECT_PATH
 
 BASEPATH = os.path.dirname(__file__)
 
@@ -16,16 +19,18 @@ redis_async_connection = {
     0: None, # for index
     1: None, # for document
     2: None, # for cache
+    3: None # for tfidf indices
 }
 
 redis_connection = None 
 redis_config = None
 
 def get_redis_config(is_async=True, db=0):
+
+    load_dotenv(dotenv_path=os.path.join(PROJECT_PATH, ".env"))
     REDIS_HOST = os.getenv("REDIS_HOST")
     REDIS_PORT =  os.getenv("REDIS_PORT")
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-
     if is_async:
         config_redis = {'address': (REDIS_HOST, REDIS_PORT), "password": REDIS_PASSWORD, "db":db}
     else:
@@ -96,6 +101,15 @@ async def get_doc_size() -> int:
         return int(doc_size)
     else:
         return 0
+
+@do_check_async_redis_connection(db=3)
+async def get_tfidf_doc_size() -> int:
+    doc_size = await redis_async_connection[3].get(RedisKeys.document_size)
+    if doc_size:
+        return int(doc_size)
+    else:
+        return 0
+    
 @do_check_async_redis_connection(db=1)
 async def check_url_exist(url_) -> int:
     is_exist = await redis_async_connection[1].sismember(RedisKeys.urls, url_)
@@ -234,11 +248,16 @@ async def batch_push_news_data(news_batch):
     await asyncio.gather(*tasks)
 
 @do_check_async_redis_connection(db=0)
-async def update_index(inverted_index: InvertedIndex):
+async def update_index(inverted_index: InvertedIndex, term_batch_size=1000):
     tasks = []
-    for term in inverted_index.index:
+    for idx, term in enumerate(inverted_index.index):
         tasks.append(update_index_term(term, inverted_index))
-    await asyncio.gather(*tasks)
+        if idx % term_batch_size == 0 and idx != 0:
+            await asyncio.gather(*tasks)
+            tasks = []
+            print(f"\r*{' '*100}\rUpdating index: {idx}/{len(inverted_index.index)}", end="")
+    if tasks:
+        await asyncio.gather(*tasks)
     
     doc_size = await redis_async_connection[0].get(RedisKeys.document_size) 
     doc_ids_list = await redis_async_connection[0].get(RedisKeys.doc_ids_list) 
@@ -271,6 +290,56 @@ async def update_index_term(term, inverted_index: InvertedIndex):
     
     await redis_async_connection[0].set(RedisKeys.index(term), orjson.dumps(db_value))
     
+    # free memory
+    del db_value
+
+@do_check_async_redis_connection(db=3)
+async def update_tfidf_index(inverted_index: InvertedIndex, term_batch_size=15000):
+    print("Updating tf")
+    tasks = []
+    for idx, term in enumerate(inverted_index.index):
+        tasks.append(update_tf_index_term(term, inverted_index))
+        if idx % term_batch_size == 0 and idx != 0:
+            asyncio.gather(*tasks)
+            tasks = []
+            print(f"\r*{' '*100}\rUpdating tf: {idx}/{len(inverted_index.index)}", end="")
+
+    if tasks:
+        await asyncio.gather(*tasks)
+    print("Updating size")
+    
+    # set the document size
+    doc_size = await redis_async_connection[3].get(RedisKeys.document_size)
+    if not doc_size:
+        doc_size = inverted_index.meta.document_size
+    else:
+        doc_size = int(doc_size) + inverted_index.meta.document_size
+    await redis_async_connection[3].set(RedisKeys.document_size, doc_size)
+
+@do_check_async_redis_connection(db=3)
+async def update_tf_index_term(term, inverted_index: InvertedIndex):
+    db_value = await redis_async_connection[3].get(RedisKeys.tf(term))
+    if not db_value:
+        db_value = {}
+    else:
+        db_value = orjson.loads(db_value)
+    
+    for doc_id, pos in inverted_index.index[term].items():
+        db_value[doc_id] = len(pos)
+    
+    await redis_async_connection[3].set(RedisKeys.tf(term), orjson.dumps(db_value))
+    
+    # free memory
+    del db_value
+
+@do_check_async_redis_connection(db=3)
+async def get_tfs(term: List[str]) -> Dict[str, Dict[str, int]]:
+    kv_pairs = await redis_async_connection[3].mget(*[RedisKeys.tf(t) for t in term])
+    if not kv_pairs:
+        return {}
+    kv_pairs = [orjson.loads(pair) for pair in kv_pairs if pair]
+    return dict(zip(term, kv_pairs))
+
 @do_check_async_redis_connection(db=0)
 async def get_json_value(key: str) -> Dict:
     value = await redis_async_connection[0].get(key)
@@ -287,7 +356,7 @@ async def get_idf_value(key: str) -> float:
     value = await redis_async_connection[0].get(key)
     return float(value)
 
-@do_check_redis_connection(db=0)
+@do_check_redis_connection(db=3)
 def clear_redis():
     redis_connection.flushall()
     return True
@@ -341,12 +410,19 @@ async def get_cache(key: str):
     asyncio.create_task(redis_async_connection[2].expire(key, 300))
     print(f"Getting cache for {key}")
     return orjson.loads(await redis_async_connection[2].get(key))
-    
 
+@do_check_async_redis_connection(db=3)
 async def test():
     print(await get_json_values([RedisKeys.index('man'), RedisKeys.index("woman")]))
     
 
+async def main():
+    # data = await get_tfs(["comic", "000g"])
+    # print(data["comic"])
+    # print(data["000g"])
+    print(await get_doc_size())
+    print(await get_tfidf_doc_size())
+    
 if __name__ == "__main__":
     # clear_redis()
-    asyncio.run(test())
+    asyncio.run(main())

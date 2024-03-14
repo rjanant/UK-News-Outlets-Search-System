@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, DefaultDict, Annotated
 from datetime import date
 from collections import defaultdict
-from typing import List, DefaultDict
+from typing import List, DefaultDict, Dict
 from enum import Enum
 
 
@@ -95,7 +95,6 @@ class InvertedIndex(BaseModel):
     ]
     """Inverted index key: term, value: dictionary of doc_id and list of positions"""
 
-
 class RedisKeys:
     """Class to represent the keys used in the redis"""
 
@@ -113,6 +112,10 @@ class RedisKeys:
     """document record for a doc_id (Dict[source, title, url, date, summary, sentiment])"""
     cache = lambda method, query, page: f"{method}:{query}:{page}"
     """cache key for a query and method"""
+    tf = lambda term: f"tf:{term}"
+    """term frequencies for a term (Dict[doc_id, int])"""
+    df = lambda term: f"df:{term}"
+    """document frequencies for a term (int)"""
 
 
 class RedisDocKeys:

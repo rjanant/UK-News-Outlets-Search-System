@@ -5,13 +5,15 @@ import time
 import math
 import asyncio
 import sys
-
+import heapq
 sys.path.append(os.path.dirname(__file__))
 from nltk.stem import PorterStemmer
-from typing import DefaultDict, Dict, List, Tuple
+from typing import DefaultDict, Dict, List, Tuple, Set
 from common import read_file, get_stop_words, get_preprocessed_words
 from redis_utils import (
     get_doc_size,
+    get_tfidf_doc_size,
+    get_tfs,
     get_doc_ids_list,
     get_json_values,
     is_key_exists,
@@ -19,7 +21,7 @@ from redis_utils import (
 )
 from build_index import delta_decode_list
 from basetype import RedisKeys
-from query_expander import QueryExpander
+from concurrent.futures import ProcessPoolExecutor
 
 # STOP_WORDS_FILE = "ttds_2023_english_stop_words.txt"
 
@@ -172,30 +174,22 @@ async def evaluate_subquery(
             return await get_doc_ids_from_string(subquery)
 
 
-async def calculate_tf_idf(
+def calculate_tf_idf(
     tokens: List[str],
     doc_id: str,
     docs_size: int,
-    word_freq: Dict[str, int],
+    word_freq: Dict[str, Dict[str, int]],
     doc_freq: Dict[str, int],
 ) -> float:
     tf_idf_score = 0
     for token in tokens:
-        keyword = f"{token}:{doc_id}"
-        # if token not in inverted_index or doc_id not in inverted_index[token]:
-        #     continue
-        if not await is_key_exists(RedisKeys.index(token)):
+        doc_tf = word_freq[token].get(doc_id, 0)
+        if doc_tf == 0:
             continue
-
-        # token_index = await get_json_value(RedisKeys.index(token)) # Deprecated
-        if keyword not in word_freq:
-            continue
-
-        tf = 1 + math.log10(word_freq[keyword])
+        tf = 1 + math.log10(doc_tf)
         idf = math.log10(docs_size / doc_freq[token])
         tf_idf_score += tf * idf
     return tf_idf_score
-
 
 # convert infix to postfix
 def precedence(operator: str) -> int:
@@ -315,6 +309,7 @@ async def evaluate_boolean_query(
     print("postfix", postfix)
 
     # evalute the value for the stuff first
+    results = []
     tasks = [
         evaluate_subquery(token, special_patterns)
         for token in postfix
@@ -346,49 +341,50 @@ async def evaluate_boolean_query(
         traceback.print_exc()
         exit()
 
-
-# query_expander = QueryExpander()
-# query_expander = QueryExpander(model_path="word2vec_files/word2vec_200_10.model")
-
 # TODO - show added terms in the interface
 async def evaluate_ranked_query(
     query: str,
     docs_size: int,
     stopping: bool = True,
     stemming: bool = True,
-    expand_query: bool = True,
-    n_expand: int = 3,
 ) -> List[Tuple[int, float]]:
-    # added_terms to add to the interface
-    # if expand_query:
-    #     query, added_terms = query_expander.expand_query(query, top_n=n_expand)
     words = get_preprocessed_words(query, stopping, stemming)
     doc_ids = set()
-    word_freq = dict()
     doc_freq = dict()
-    doc_ids_tasks = [
-        get_json_value(RedisKeys.index(word))
-        for word in words
-        if await is_key_exists(RedisKeys.index(word))
-    ]
-    doc_ids_results = await asyncio.gather(*doc_ids_tasks)
-    for word, result in zip(words, doc_ids_results):
-        doc_ids = doc_ids.union(result.keys())
-        word_freq.update({f"{word}:{doc}": len(pos) for doc, pos in result.items()})
-        doc_freq[word] = len(result)
-
-    doc_ids = list(doc_ids)
+    tfs = await get_tfs(words)
+    
+    if not tfs:
+        return []
+    
+    for word, tf in tfs.items():
+        doc_ids = doc_ids.union(tf.keys())
+        doc_freq[word] = len(tf)
+    
     scores = []
-
-    score_tasks = [
-        calculate_tf_idf(words, doc_id, docs_size, word_freq, doc_freq)
-        for doc_id in doc_ids
-    ]
-    score_results = await asyncio.gather(*score_tasks)
+    score_results = []
+    start_time = time.time()
+    for doc_id in doc_ids:
+        score_results.append(calculate_tf_idf(words, doc_id, docs_size, tfs, doc_freq))
+    print("Time taken to calculate tfidf scores", time.time() - start_time)
+    
+    start_time = time.time()
     for idx, doc_id in enumerate(doc_ids):
         scores.append((doc_id, score_results[idx]))
+    print("Time taken to process ranked query", time.time() - start_time)
+    
     # sort by the score and the doc_id
-    scores.sort(key=lambda x: (-x[1], x[0]))
+    start_time = time.time()
+    # scores.sort(key=lambda x: (-x[1], x[0]))
+    # scores = sorted(scores, key=lambda x: (-x[1], x[0])
+
+    # sort the scores in chunks using the process pool executor
+    # check if the length of the scores is greater than 1000
+    # if len(scores) > 1000:
+    #     scores = heapq.nlargest(1000, scores, key=lambda x: x[1])
+    # else:
+    scores = sorted(scores, key=lambda x: (-x[1]))
+    
+    print("Time taken to sort the scores", time.time() - start_time)
 
     return scores
 
@@ -402,7 +398,7 @@ async def boolean_test(
     for query in boolean_queries:
         results.append(await evaluate_boolean_query(query, doc_ids_list))
     print(
-        "Time taken to process boolean queries", time.time() - start_time, len(results)
+        "Time taken to process boolean queries", time.time() - start_time, len(results[0])
     )
     return results
 
@@ -410,7 +406,7 @@ async def boolean_test(
 async def ranked_test(
     ranked_queries: List[str] = ["Comic Relief"],
 ) -> List[List[Tuple[int, float]]]:
-    doc_size = await get_doc_size()
+    doc_size = await get_tfidf_doc_size()
     start_time = time.time()
     results = []
     for query in ranked_queries:
@@ -424,7 +420,7 @@ async def ranked_test(
 
 
 async def main():
-    # print(await boolean_test())
+    # await boolean_test(["Biden"])
     await ranked_test(["Donald Trump and Biden in 2024 USA"])
 
     #### BENCHMARKING

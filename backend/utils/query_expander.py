@@ -2,12 +2,12 @@ import pandas as pd
 import numpy as np
 import os
 from tqdm import tqdm
-from typing import List
+from typing import List, Tuple
 from gensim.models import Word2Vec
 import pickle
 from common import get_preprocessed_words
-import os
-
+import os, sys
+from constant import QUERY_EXPANSION_MODEL_PATH
 
 class QueryExpander:
     """
@@ -16,9 +16,9 @@ class QueryExpander:
     """
 
     def __init__(
-        self, model_path: str = "word2vec_files/word2vec_200_10.model"
+        self, model_path: str = "word2vec_200_10.model"
     ) -> None:
-        self.model = Word2Vec.load(model_path)
+        self.model = Word2Vec.load(os.path.join(QUERY_EXPANSION_MODEL_PATH, model_path))
         self.words = self.model.wv.index_to_key
         self.vectors = self.model.wv.vectors
 
@@ -118,7 +118,7 @@ class QueryExpander:
         self.words = self.model.wv.index_to_key
         self.vectors = self.model.wv.vectors
 
-    def expand_query(self, query: str, top_n: int = 3) -> str:
+    def expand_query(self, query: str, top_n: int = 3) -> Tuple[str, List[str]]:
         query_terms = get_preprocessed_words(query, stopping=True, stemming=False)
         expanded_query_terms = []
         preprocessed_terms_set = set()  # To store preprocessed versions for comparison

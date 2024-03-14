@@ -24,14 +24,13 @@ export const fetchSearchResults = async (query, type, page = 1) => {
     }
 };
 
-
-
 // Function to call the query expansion endpoint
-export const fetchQueryExpansions = async () => {
+export const fetchQueryExpansions = async (query, expansions) => {
   try {
     //add the url of the query expansion endpoint in response
-    const response = await axios.get('https://mocki.io/v1/6268f71b-9089-407b-8d25-be897fd39877');
-    return response.data.results; 
+    const response = await axios.get(`${BASE_URL}/search/query-expansion?q=${query}&expansions=${expansions}`);
+    return response.data;
+
   } catch (error) {
     console.error('Error fetching query expansions:', error);
     return [];

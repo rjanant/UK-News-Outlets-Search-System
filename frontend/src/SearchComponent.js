@@ -2,7 +2,7 @@ import React from "react";
 import {
   Container,
 } from "react-bootstrap";
-import logoImage from "./logo.png";
+import logoImage from "./logo.ico";
 import SearchBar from "./SearchBar";
 function SearchComponent(top_children, bottom_children) {
 
@@ -15,8 +15,8 @@ function SearchComponent(top_children, bottom_children) {
         <div className="text-center">
           <img
             src={logoImage}
-            alt="FactChecker Logo"
-            style={{ maxWidth: "350px", width: "100%", marginBottom: "20px" }}
+            alt="BritPress Navigator Logo"
+            style={{ maxWidth: "280px", width: "100%", marginBottom: "20px" }}
           />
           <SearchBar />
         </div>
