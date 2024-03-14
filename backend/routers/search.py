@@ -20,7 +20,7 @@ from utils.spell_checker import SpellChecker
 from utils.query_suggestion import QuerySuggestion
 from urllib.parse import unquote
 from typing import List, Dict, Tuple
-
+from utils.query_expander import QueryExpander
 from utils.constant import (
     MONOGRAM_PKL_PATH,
     STOP_WORDS_FILE_PATH,
@@ -65,7 +65,7 @@ class TestBody(BaseModel):
     field: str = Field(..., description="Test field", min_length=1, max_length=1024)
 
 
-@router.post("/test")
+@router.post("/test2")
 async def test(body: TestBody):
     test_env = getenv("TESTING", "default")
     return ORJSONResponse(content={"field": body.field, "env": test_env})
@@ -195,6 +195,7 @@ async def spellcheck(
     ```
     """
     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
+    q=unquote(q)
     return spell_checker.correct_query(q)
 
 @router.get("/validate-boolean-query")
@@ -208,6 +209,7 @@ async def validate_boolean_query(
     ```
     """
     # spell_checker.correct_query("bidan vs trumpp uneted stetes of amurica"))
+    q=unquote(q)
     return check_query(q)
 
 
@@ -230,9 +232,6 @@ async def validate_boolean_query(
 #     suggestions =  query_suggestion.get_query_suggestions(q)
 #     return ORJSONResponse(content={"expanded_queries": suggestions})
 
-class ExpansionQuery(BaseModel):  
-    query: str
-    num_expansions: int = 10  # Default value set to 10
 
 # Query with bigram model
 # @router.post("/expand-query/")
@@ -244,15 +243,22 @@ class ExpansionQuery(BaseModel):
 #     # return ORJSONResponse(content={"expanded_queries": expanded_query})
 #     return ORJSONResponse(content={"expanded_queries": suggestions})
 
+# Query expansion with word2vec
+expander = QueryExpander()
+@router.get("/query-expansion")
+async def query_expansion(
+    q: str = Query(..., description="Search query", min_length=1, max_length=1024),
+    expansions: int = Query(3, description="Number of expansions", ge=1, le=10)
+):
+    expanded_query, added_terms = expander.expand_query(q, expansions)
+    return ORJSONResponse(content={"expanded_query": expanded_query, "added_terms": added_terms})
+
 # Query Expansion with Roberta
 class ExpansionQuery(BaseModel):  
     query: str
     num_expansions: int = 10  # Default value set to 10
-
 @router.post("/expand-query/")
 async def expand_query_api(query_data: ExpansionQuery):
-    
-
     expanded_query = expand_query(query_data.query, query_data.num_expansions)
     return ORJSONResponse(content={"expanded_queries": expanded_query})
 

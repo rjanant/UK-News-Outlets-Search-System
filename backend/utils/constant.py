@@ -1,10 +1,12 @@
 import os
 from enum import Enum
 
+PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
 CHILD_INDEX_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "index", "child")
 )
+
 GLOBAL_INDEX_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "index", "global")
 )
@@ -36,6 +38,13 @@ STOP_WORDS_FILE_PATH = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),  # The directory of the constants.py file
         "ttds_2023_english_stop_words.txt",  # Assuming it's directly under utils
+    )
+)
+
+QUERY_EXPANSION_MODEL_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "word2vec_files",
     )
 )
 

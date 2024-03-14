@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { fetchSearchBoolean } from "./api";
 import {
   Container,
   Navbar,
@@ -15,7 +14,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import QueryExpansion from "./queryExpansion";
-import { fetchSearchResults } from "./api";
+import { fetchSearchResults, fetchQueryExpansions } from "./api";
 import SentimentBadge from "./SentimentBadge";
 import SearchBar from "./SearchBar";
 
@@ -32,6 +31,7 @@ function ResultsPage() {
   const [useTime, setUseTime] = useState(0);
   const [scores, setScores] = useState([]);
   const [type, setType] = useState("tfidf" || "boolean");
+  const [expansionTerms, setExpansionTerms] = useState([]);
   const maxPagesToShow = 5;
 
   function searchRoutine(searchParams) {
@@ -40,26 +40,53 @@ function ResultsPage() {
     const type = params.type || "tfidf";
     setType(type);
     const page = parseInt(params.page) || 1;
-
+    const expansions = parseInt(params.expansions) || 0;
     if (!query) {
       navigate("/");
     } else {
       let startTime = Date.now();
       setSearchQuery(query);
-      fetchSearchResults(query, type, page)
-        .then((res) => {
-          let elapsedTime = Date.now() - startTime;
-          setUseTime(elapsedTime);
-          setSearchResults(res.results || []);
-          setTotalPage(res.total_pages);
-          setCurrentPage(page);
-          setScores(res.scores || []);
-          setLoading(false);
-        })
-        .catch((error) => {
-          alert("Error fetching search results:", error);
-          navigate("/error");
-        });
+      if (expansions > 0) {
+        fetchQueryExpansions(query, expansions)
+          .then((res) => {
+            console.log(res);
+            setExpansionTerms(res.added_terms);
+
+            fetchSearchResults(res.expanded_query, type, page)
+              .then((res) => {
+                let elapsedTime = Date.now() - startTime;
+                setUseTime(elapsedTime);
+                setSearchResults(res.results || []);
+                setTotalPage(res.total_pages);
+                setCurrentPage(page);
+                setScores(res.scores || []);
+                setLoading(false);
+              })
+              .catch((error) => {
+                alert("Error fetching search results:", error);
+                navigate("/error");
+              });
+          })
+          .catch((error) => {
+            alert("Error fetching query expansions:", error);
+            navigate("/error");
+          });
+      } else {
+        fetchSearchResults(query, type, page)
+          .then((res) => {
+            let elapsedTime = Date.now() - startTime;
+            setUseTime(elapsedTime);
+            setSearchResults(res.results || []);
+            setTotalPage(res.total_pages);
+            setCurrentPage(page);
+            setScores(res.scores || []);
+            setLoading(false);
+          })
+          .catch((error) => {
+            alert("Error fetching search results:", error);
+            navigate("/error");
+          });
+      }
     }
   }
 
@@ -172,13 +199,20 @@ function ResultsPage() {
           <SearchBar />
         </div>
       </Container>
+
+      {!loading && expansionTerms.length > 0 && (
+        <div className="d-flex justify-content-center align-items-center mb-3">
+          <h6>Expanded query: {expansionTerms.join(", ")}</h6>
+        </div>
+      )}
+
       {/* disable when type is boolean */}
-      {type !== "boolean" &&
+      {type !== "boolean" && (
         <QueryExpansion
           onQuerySelect={handleQueryExpansionSelect}
           currentQuery={searchQuery}
         />
-      }
+      )}
 
       <Container>
         <Row>
@@ -229,7 +263,13 @@ function ResultsPage() {
           </Col>
           <Col md={9}>
             <h2> Search Results </h2>
-            {!loading && <h6>{`Search took ${useTime / 1000} seconds`}</h6>}
+            {!loading && (
+              <div>
+                <h6>{`Search took ${
+                  useTime / 1000
+                } seconds, total ${totalPage} pages`}</h6>
+              </div>
+            )}
             <ColorCodingGuide />
             {loading ? (
               <Spinner animation="border" role="status">

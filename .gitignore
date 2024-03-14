@@ -185,5 +185,6 @@ backend/utils/word2vec_files/word2vec_200_10.model
 backend/utils/word2vec_files/word2vec_200_10.model.syn1neg.npy
 backend/utils/word2vec_files/word2vec_200_10.model.wv.vectors.npy
 backend/utils/word2vec_files/combined_contents.csv
+backend/utils/.env
 backend/utils/tutorial.ipynb
 backend/utils/live_index_tutorial.ipynb

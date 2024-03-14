@@ -342,10 +342,12 @@ def build_child_index(
 if __name__ == "__main__":
     tasks = [
         (Source.BBC, date(2024, 2, 17)),
+        (Source.BBC, date(2024, 3, 4)),
+        (Source.BBC, date(2024, 3, 9)),
         (Source.IND, date(2024, 2, 18)),
         (Source.GBN, date(2024, 2, 18)),
         (Source.TELE, date(2024, 2, 16)),
     ]
 
-    with ProcessPoolExecutor(max_workers=4) as executor:
+    with ProcessPoolExecutor(max_workers=6) as executor:
         executor.map(build_child_index, *zip(*tasks))
