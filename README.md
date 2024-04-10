@@ -1,4 +1,4 @@
--------- UK News Outlets Search System - Project (CW3) for the course Text Technologies for Data Science at the University of Edinburgh ---------
+UK News Outlets Search System - Project (CW3) for the course Text Technologies for Data Science at the University of Edinburgh
 
 Abstract : 
 
