@@ -6,6 +6,8 @@ This study presents a dedicated search engine tailored for the UK news landscape
 
 [See Project Report - Group18.pdf]
 
+s2495270 - Anant Raj 
+
 # ttds-proj
 Python version: 3.12.1
 
