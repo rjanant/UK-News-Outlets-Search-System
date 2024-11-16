@@ -4,7 +4,9 @@ Abstract :
 
 This study presents a dedicated search engine tailored for the UK news landscape, designed to address the challenges of excessive information and enhance news credibility. Utilizing methods like TF-IDF scoring, Boolean searches, and innovative features such as automated aggregation, concise summarization, and sentiment assessment, the platform ensures the delivery of pertinent and authentic information. This system onboarded 706k news documents from 4 trusted outlets and an additional ±1.3k daily news of live indexing with about ±600 tokens for each document. Diverging from traditional models, this system emphasizes the signiﬁcance of content quality over mere viewership metrics, thereby facilitating more effective navigation through the extensive online news environment. Through the inclusion of features such as query enhancement and suggestion, this system provides substantial support to diverse groups such as media professionals, academic researchers, and the general populace, helping them to accurately identify and comprehend important topics.
 
-[See Project Report - Group18.pdf]
+[See Project Report - Group18.pdf]<img width="1137" alt="Screenshot 2024-11-16 at 11 08 32" src="https://github.com/user-attachments/assets/d6149948-c6e5-41d7-b7f6-4757a9fa253f">
+<img width="1053" alt="Screenshot 2024-11-16 at 11 09 30" src="https://github.com/user-attachments/assets/a989a0c9-4b33-42b8-8017-e9ae4f6182c8">
+
 
 s2495270 - Anant Raj 
 
